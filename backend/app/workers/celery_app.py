@@ -19,6 +19,10 @@ celery_app = Celery(
         "app.workers.tasks.embeddings",
         "app.workers.tasks.image_analysis",
         "app.workers.tasks.notifications",
+        "app.workers.tasks.enrich",
+        "app.workers.tasks.resolution",
+        "app.workers.tasks.transcribe",
+        "app.workers.tasks.maintenance",
     ],
 )
 
@@ -44,6 +48,22 @@ celery_app.conf.update(
         "jobs.generate_embedding": {"queue": "civiclens"},
         "jobs.analyze_image": {"queue": "civiclens"},
         "jobs.send_notification": {"queue": "civiclens"},
+        "jobs.enrich_complaint": {"queue": "civiclens"},
+        "jobs.verify_resolution": {"queue": "civiclens"},
+        "jobs.transcribe_audio": {"queue": "civiclens"},
+        "civiclens.sla_check": {"queue": "civiclens"},
+        "civiclens.recompute_analytics": {"queue": "civiclens"},
+    },
+    # --- Scheduled maintenance (start with: celery -A app.workers.celery_app beat)
+    beat_schedule={
+        "sla-breach-check": {
+            "task": "civiclens.sla_check",
+            "schedule": float(settings.sla_check_interval_minutes * 60),
+        },
+        "recompute-clusters-and-priority": {
+            "task": "civiclens.recompute_analytics",
+            "schedule": float(settings.priority_recompute_interval_minutes * 60),
+        },
     },
     # --- Timeouts ------------------------------------------------------
     task_time_limit=5 * 60,

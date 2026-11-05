@@ -71,6 +71,37 @@ OPENAPI_TAGS = [
         "name": "jobs",
         "description": "Asynchronous AI/worker jobs: embeddings, image analysis, notifications.",
     },
+    {
+        "name": "complaints",
+        "description": (
+            "Filing, similarity search, workflow, upvotes, evidence photos, "
+            "resolution verification and the audit trail."
+        ),
+    },
+    {
+        "name": "wards",
+        "description": "Ward boundaries, sensitive sites and open-complaint counts.",
+    },
+    {
+        "name": "clusters",
+        "description": "Recurring issues: geo+semantic clusters with affected areas.",
+    },
+    {
+        "name": "forecasts",
+        "description": "14-day complaint-volume hotspot forecasts per ward and category.",
+    },
+    {
+        "name": "assistant",
+        "description": "Role-scoped natural-language questions over complaint data.",
+    },
+    {
+        "name": "voice",
+        "description": "Whisper speech-to-text for English, Hindi and Kannada reports.",
+    },
+    {
+        "name": "media",
+        "description": "Evidence photo downloads with per-role access control.",
+    },
 ]
 
 
