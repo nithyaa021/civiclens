@@ -10,6 +10,7 @@ from app.core.deps import DbDep, RedisDep, require_roles
 from app.core.errors import ForbiddenError
 from app.models.common import Page
 from app.models.user import (
+    OfficerRef,
     Role,
     UserCreate,
     UserPublic,
@@ -79,6 +80,38 @@ async def list_users(
         status=status_filter,
         search=search,
     )
+
+
+@router.get(
+    "/officers",
+    response_model=list[OfficerRef],
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_roles(Role.WARD_OFFICER))],
+    summary="List active ward officers",
+    description=(
+        "Minimal officer directory for assignment pickers. Staff only; email "
+        "addresses and account state are not exposed."
+    ),
+    responses={
+        200: {"description": "Active ward officers ordered by ward and name."},
+        401: {"description": "Not authenticated."},
+        403: {"description": "Staff only."},
+    },
+)
+async def list_officers(
+    db: DbDep,
+    ward: Annotated[int | None, Query(ge=1, le=999)] = None,
+) -> list[OfficerRef]:
+    query: dict[str, object] = {"role": Role.WARD_OFFICER.value, "status": UserStatus.ACTIVE.value}
+    if ward is not None:
+        query["ward"] = ward
+    cursor = db["users"].find(query, {"full_name": 1, "ward": 1}).sort(
+        [("ward", 1), ("full_name", 1)]
+    )
+    return [
+        OfficerRef(id=str(doc["_id"]), full_name=doc["full_name"], ward=doc.get("ward"))
+        async for doc in cursor
+    ]
 
 
 @router.get(

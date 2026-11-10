@@ -21,6 +21,9 @@ from app.models.complaint import (
     ComplaintStatus,
     ComplaintSummary,
     EnrichmentStatus,
+    InternalNote,
+    InternalNoteCreate,
+    InternalNoteList,
     LanguageInfo,
     MlSuggestion,
     PriorityScore,
@@ -350,6 +353,131 @@ async def update_status(
             requested_by=actor.id,
         )
     return serialize(updated, actor)
+
+
+# --- Staff notes and assignment ------------------------------------------------
+async def _staff_visible_complaint(
+    db: AsyncIOMotorDatabase, complaint_id: str, actor: UserPublic
+) -> dict[str, Any]:
+    """Load a complaint for a staff action, enforcing ward scope."""
+    if actor.role == Role.CITIZEN:
+        raise ForbiddenError("This action is restricted to ward officers and administrators.")
+    oid = _oid(complaint_id)
+    doc = await db["complaints"].find_one({"_id": oid})
+    if doc is None:
+        raise NotFoundError("Complaint", complaint_id)
+    if actor.role == Role.WARD_OFFICER and doc.get("ward") != actor.ward:
+        raise ForbiddenError("You can only manage complaints in your assigned ward.")
+    return doc
+
+
+async def assign_officer(
+    db: AsyncIOMotorDatabase,
+    complaint_id: str,
+    officer_id: str,
+    actor: UserPublic,
+) -> ComplaintPublic:
+    """Assign (or reassign) a complaint to an active ward officer."""
+    current = await _staff_visible_complaint(db, complaint_id, actor)
+    if not ObjectId.is_valid(officer_id):
+        raise NotFoundError("Officer", officer_id)
+    officer = await db["users"].find_one({"_id": ObjectId(officer_id)})
+    if officer is None or officer.get("role") != Role.WARD_OFFICER.value:
+        raise ApiError(400, "invalid_officer", "Choose an active ward officer.")
+    if officer.get("status") != "active":
+        raise ApiError(400, "inactive_officer", "That officer account is inactive.")
+    if actor.role == Role.WARD_OFFICER and officer.get("ward") != actor.ward:
+        raise ForbiddenError("You can only assign complaints inside your ward.")
+    if current["status"] == ComplaintStatus.CLOSED.value:
+        raise ConflictError("Closed complaints cannot be reassigned.")
+
+    now = datetime.now(UTC)
+    update: dict[str, Any] = {"assigned_officer_id": officer_id, "updated_at": now}
+    if current["status"] == ComplaintStatus.SUBMITTED.value:
+        update["status"] = ComplaintStatus.ASSIGNED.value
+    updated = await db["complaints"].find_one_and_update(
+        {"_id": current["_id"], "status": current["status"]},
+        {"$set": update},
+        return_document=ReturnDocument.AFTER,
+    )
+    if updated is None:
+        raise ConflictError("The complaint changed while assigning; refresh and retry.")
+
+    await audit.record_event(
+        db,
+        action="assigned",
+        complaint_id=complaint_id,
+        actor_id=actor.id,
+        actor_role=actor.role.value,
+        details={
+            "from": current.get("assigned_officer_id"),
+            "to": officer_id,
+            "officer_name": officer.get("full_name"),
+            "ward": officer.get("ward"),
+        },
+    )
+    if officer_id != actor.id:
+        from app.workers.tasks.notifications import send_notification
+
+        send_notification.delay(
+            user_id=officer_id,
+            subject="Complaint assigned to you",
+            body=f"'{updated['title']}' in ward {updated.get('ward')} is now in your queue.",
+            channel="in_app",
+            requested_by=actor.id,
+        )
+    return serialize(updated, actor)
+
+
+async def list_internal_notes(
+    db: AsyncIOMotorDatabase, complaint_id: str, actor: UserPublic
+) -> InternalNoteList:
+    """Staff-only notes for one complaint, oldest first."""
+    await _staff_visible_complaint(db, complaint_id, actor)
+    items = [
+        InternalNote(
+            id=str(doc["_id"]),
+            complaint_id=doc["complaint_id"],
+            author_id=doc["author_id"],
+            author_name=doc["author_name"],
+            author_role=doc["author_role"],
+            note=doc["note"],
+            created_at=doc["created_at"],
+        )
+        async for doc in db["complaint_notes"].find({"complaint_id": complaint_id}).sort(
+            "created_at", 1
+        )
+    ]
+    return InternalNoteList(items=items, total=len(items))
+
+
+async def add_internal_note(
+    db: AsyncIOMotorDatabase,
+    complaint_id: str,
+    payload: InternalNoteCreate,
+    actor: UserPublic,
+) -> InternalNote:
+    """Append a staff note and mirror it into the audit trail."""
+    await _staff_visible_complaint(db, complaint_id, actor)
+    now = datetime.now(UTC)
+    doc = {
+        "complaint_id": complaint_id,
+        "author_id": actor.id,
+        "author_name": actor.full_name,
+        "author_role": actor.role.value,
+        "note": payload.note.strip(),
+        "created_at": now,
+    }
+    result = await db["complaint_notes"].insert_one(doc)
+    await audit.record_event(
+        db,
+        action="internal_note",
+        complaint_id=complaint_id,
+        actor_id=actor.id,
+        actor_role=actor.role.value,
+        details={"note": payload.note.strip()},
+    )
+    return InternalNote(id=str(result.inserted_id), **doc)
 
 
 # --- Voting (upvote instead of duplicating) -----------------------------------

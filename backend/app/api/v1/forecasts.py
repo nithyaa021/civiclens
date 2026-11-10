@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from app.core.deps import CurrentUserDep, DbDep, SettingsDep
+from app.models.analytics import ForecastMapResponse
 from app.models.complaint import ComplaintCategory, ForecastResponse
 from app.services import forecasts as service
 
@@ -90,3 +91,34 @@ async def forecast_ward(
                 continue
             raise
     return results
+
+
+@router.get(
+    "/map",
+    response_model=ForecastMapResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Forecast totals for every ward",
+    description=(
+        "One aggregate per ward for the selected category: predicted reports over "
+        "the horizon plus the peak day. Used by the dashboard's forecast map layer."
+    ),
+    responses={
+        200: {"description": "Per-ward forecast totals."},
+        401: {"description": "Not authenticated."},
+        503: {"description": "Forecast model not trained yet."},
+    },
+)
+async def forecast_map(
+    user: CurrentUserDep,
+    db: DbDep,
+    settings: SettingsDep,
+    category: Annotated[ComplaintCategory, Query()],
+    horizon_days: Annotated[int | None, Query(ge=1, le=60)] = None,
+) -> ForecastMapResponse:
+    return await service.forecast_map(
+        db,
+        category=category,
+        horizon_days=horizon_days or settings.forecast_horizon_days,
+        settings=settings,
+    )
+

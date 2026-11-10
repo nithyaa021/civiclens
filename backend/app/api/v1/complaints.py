@@ -7,16 +7,24 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
 from app.core.deps import CurrentUserDep, DbDep, SettingsDep, default_rate_limit
-from app.core.errors import ForbiddenError
+from app.core.errors import ApiError, ForbiddenError
 from app.core.uploads import ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES, validate_upload
 from app.models.common import Page
 from app.models.complaint import (
+    AssignRequest,
     AttachmentRef,
     AuditPage,
+    BulkAssignRequest,
+    BulkFailure,
+    BulkResult,
+    BulkStatusRequest,
     ComplaintCreate,
     ComplaintPublic,
     ComplaintStatus,
     ComplaintUpdateStatus,
+    InternalNote,
+    InternalNoteCreate,
+    InternalNoteList,
     ResolutionDecision,
     SimilarIssueQuery,
     SimilarIssueResponse,
@@ -85,6 +93,75 @@ async def find_similar(
     settings: SettingsDep,
 ) -> SimilarIssueResponse:
     return await service.find_similar_issues(db, payload, settings)
+
+
+@router.post(
+    "/bulk/assign",
+    response_model=BulkResult,
+    status_code=status.HTTP_200_OK,
+    summary="Assign several complaints to one officer",
+    description=(
+        "Staff-only bulk assignment used by the authority queue. Each complaint is "
+        "validated independently; the response reports per-item failures instead of "
+        "rolling back successful assignments."
+    ),
+    responses={
+        200: {"description": "Per-complaint assignment result."},
+        401: {"description": "Not authenticated."},
+        403: {"description": "Staff only."},
+    },
+    dependencies=[Depends(default_rate_limit)],
+)
+async def bulk_assign(
+    payload: BulkAssignRequest, user: CurrentUserDep, db: DbDep
+) -> BulkResult:
+    if user.role == Role.CITIZEN:
+        raise ForbiddenError("Citizens cannot assign complaints.")
+    items: list[ComplaintPublic] = []
+    failed: list[BulkFailure] = []
+    for complaint_id in dict.fromkeys(payload.complaint_ids):
+        try:
+            items.append(
+                await service.assign_officer(db, complaint_id, payload.officer_id, user)
+            )
+        except ApiError as error:
+            failed.append(BulkFailure(complaint_id=complaint_id, error=error.message))
+    return BulkResult(updated=len(items), items=items, failed=failed)
+
+
+@router.post(
+    "/bulk/status",
+    response_model=BulkResult,
+    status_code=status.HTTP_200_OK,
+    summary="Apply one workflow transition to several complaints",
+    description=(
+        "Staff-only bulk status change. Every transition still passes the normal "
+        "state-machine and ward checks; invalid items are reported individually."
+    ),
+    responses={
+        200: {"description": "Per-complaint transition result."},
+        401: {"description": "Not authenticated."},
+        403: {"description": "Staff only."},
+    },
+    dependencies=[Depends(default_rate_limit)],
+)
+async def bulk_status(
+    payload: BulkStatusRequest, user: CurrentUserDep, db: DbDep
+) -> BulkResult:
+    if user.role == Role.CITIZEN:
+        raise ForbiddenError("Citizens cannot change complaint status.")
+    items: list[ComplaintPublic] = []
+    failed: list[BulkFailure] = []
+    for complaint_id in dict.fromkeys(payload.complaint_ids):
+        try:
+            items.append(
+                await service.update_status(
+                    db, complaint_id, payload.status, payload.note, user
+                )
+            )
+        except ApiError as error:
+            failed.append(BulkFailure(complaint_id=complaint_id, error=error.message))
+    return BulkResult(updated=len(items), items=items, failed=failed)
 
 
 @router.get(
@@ -168,6 +245,73 @@ async def get_audit(complaint_id: str, user: CurrentUserDep, db: DbDep) -> Audit
     ):
         raise ForbiddenError("You can only read the history of your own reports.")
     return await audit_service.list_for_complaint(db, complaint_id)
+
+
+@router.get(
+    "/{complaint_id}/notes",
+    response_model=InternalNoteList,
+    status_code=status.HTTP_200_OK,
+    summary="Internal notes for one complaint",
+    description="Staff-only notes, oldest first. Not visible to citizens.",
+    responses={
+        200: {"description": "Notes."},
+        401: {"description": "Not authenticated."},
+        403: {"description": "Staff only, or wrong ward."},
+        404: {"description": "Unknown complaint id."},
+    },
+)
+async def list_notes(
+    complaint_id: str, user: CurrentUserDep, db: DbDep
+) -> InternalNoteList:
+    return await service.list_internal_notes(db, complaint_id, user)
+
+
+@router.post(
+    "/{complaint_id}/notes",
+    response_model=InternalNote,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add an internal note",
+    description="Append a staff note; the note is also mirrored into the audit trail.",
+    responses={
+        201: {"description": "Note stored."},
+        401: {"description": "Not authenticated."},
+        403: {"description": "Staff only, or wrong ward."},
+        404: {"description": "Unknown complaint id."},
+    },
+    dependencies=[Depends(default_rate_limit)],
+)
+async def add_note(
+    complaint_id: str,
+    payload: InternalNoteCreate,
+    user: CurrentUserDep,
+    db: DbDep,
+) -> InternalNote:
+    return await service.add_internal_note(db, complaint_id, payload, user)
+
+
+@router.post(
+    "/{complaint_id}/assign",
+    response_model=ComplaintPublic,
+    status_code=status.HTTP_200_OK,
+    summary="Assign a complaint to a ward officer",
+    description="Staff-only assignment or reassignment inside the caller's ward.",
+    responses={
+        200: {"description": "Complaint assigned."},
+        400: {"description": "Officer is not an active ward officer."},
+        401: {"description": "Not authenticated."},
+        403: {"description": "Staff only, or wrong ward."},
+        404: {"description": "Unknown complaint or officer id."},
+        409: {"description": "Complaint is closed."},
+    },
+    dependencies=[Depends(default_rate_limit)],
+)
+async def assign(
+    complaint_id: str,
+    payload: AssignRequest,
+    user: CurrentUserDep,
+    db: DbDep,
+) -> ComplaintPublic:
+    return await service.assign_officer(db, complaint_id, payload.officer_id, user)
 
 
 @router.patch(
