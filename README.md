@@ -7,9 +7,9 @@ from a transparent weighted breakdown, clusters recurring issues, verifies
 before/after photo evidence and forecasts hotspot volume. A role-scoped assistant
 answers questions and always cites real complaint IDs.
 
-> **Status:** Phases 1 and 2 are complete and verified. Every AI number in this
+> **Status:** Phases 1–3 are complete and verified. Every AI number in this
 > README was measured on the deterministic, labelled corpus in
-> `backend/app/data/corpus.py` by `backend/scripts/evaluate.py` — no hand-written
+> `backend/app/data/corpus.py` by `backend/scripts/evaluate.py` - no hand-written
 > or mocked metrics.
 
 ---
@@ -68,6 +68,9 @@ answers questions and always cites real complaint IDs.
 | Translation | NLLB-200-distilled-600M, 8-bit ONNX (no PyTorch) |
 | Resolution check | CLIP ViT-B/32 vision embeddings + SSIM/defect features + logistic regression |
 | Forecast | global XGBoost regressor over per-(ward, category) daily counts |
+| Web console | React 19 + TypeScript + Vite, TanStack Query, React Router, Tailwind |
+| Charts & maps | Recharts, Leaflet + marker clustering + heat layer, CARTO basemaps |
+| Web testing | Vitest unit tests for formatting and saved-filter persistence (in-memory storage fake) |
 | Observability | structlog (JSON in production), request-id middleware, `/health` probes |
 | Testing | pytest + pytest-asyncio + httpx ASGI transport |
 | Packaging | Docker + docker-compose (api, worker, beat, mongo, redis, qdrant) |
@@ -180,13 +183,87 @@ a complaint ID.
 
 ---
 
+## Phase 3 — authority web console & public portal
+
+`web/` is a React 19 + TypeScript + Vite single-page application. Municipal staff
+get a dense operational console; residents get an unauthenticated transparency
+portal that only ever receives aggregate ward data.
+
+### Screens
+
+| Screen | What it does |
+|---|---|
+| **Overview** | Five headline KPIs (open, resolved this week, mean resolution time, SLA breaches, resolved rate), a 7/30/90/180-day window, received-vs-resolved trend, category mix with open share, highest-priority open cases and open load by ward. |
+| **Complaint queue** | Server-side search plus status, category and ward filters, four sort orders, browser-local saved views, row selection with bulk assignment and bulk workflow transitions, per-case failure reporting and pagination. |
+| **Complaint detail** | Original-language metadata and English translation, authenticated evidence gallery, location map, priority component breakdown, SLA state, before/after verification with model confidence, similar issues, audit timeline, internal notes and guarded workflow transitions. |
+| **City map** | Clustered complaint markers, ward boundaries from `/wards`, density heat map, category-coloured points, 14-day forecast overlay per category and a truncation notice when the point cap is reached. |
+| **Recurring issues** | DBSCAN clusters with 14-day sparklines, period-over-period direction, open counts, affected radius, member case links and an on-demand recompute. |
+| **Operations assistant** | Grounded Q&A with intent and visibility-scope labels plus clickable citations to real complaint records. |
+| **Public portal** (`/public`) | City totals, sortable per-ward performance table, category mix, anonymised recent resolutions, and methodology/privacy notes. No authentication required. |
+
+### Design and accessibility
+
+- Restrained neutral palette with one deep blue/teal primary; status colours are
+  semantic only (critical, warning, positive, info), never decorative.
+- Inter Variable, tabular numerals for all metrics, Lucide icons, 4/8 px spacing
+  scale, 1 px borders and 6–8 px radii. No gradients, glass effects or emoji.
+- Every list and chart has a loading skeleton, an empty state and an error state
+  with retry; the shell also has a skip link, visible focus rings and labelled
+  controls.
+- Light and dark themes are driven by CSS custom properties on
+  `document.documentElement[data-theme]`, so there is no flash of the wrong
+  theme and charts/maps re-colour with the rest of the UI.
+- Staff routes are code-split; the public portal and sign-in stay in the initial
+  bundle, so anonymous visitors never download the map or chart code.
+
+### Backend additions for Phase 3
+
+| Endpoint | Access | Purpose |
+|---|---|---|
+| `GET /analytics/overview` | staff | Role-scoped KPIs, daily trend and category mix |
+| `GET /analytics/map` | staff | Capped, priority-ordered points for the map |
+| `GET /public/stats` | public | Aggregate ward/category/resolution payload, `max-age=60` |
+| `GET /forecasts/map` | any token | Per-ward 14-day totals for the forecast overlay |
+| `GET /users/officers` | staff | Officer directory for assignment |
+| `POST /complaints/bulk/assign` | staff | Assign many cases, per-case results |
+| `POST /complaints/bulk/status` | staff | Bulk workflow transitions with audit notes |
+| `POST /complaints/{id}/assign` | staff | Single-case assignment |
+| `GET/POST /complaints/{id}/notes` | staff | Internal notes, never exposed to reporters |
+
+Ward documents now store their boundary polygon (used by both the map and the
+public payload), and recurring clusters store a 14-day daily trend. The seed
+corpus now ends at the current date and stores deterministic resolution and
+closure timestamps, so dashboard windows always contain realistic activity.
+
+### Running the web console
+
+```bash
+cd web
+npm install
+npm run dev              # http://localhost:5173, proxies /api to :8000
+```
+
+Set `VITE_API_PROXY_TARGET` to point the dev server at another API instance, for
+example `VITE_API_PROXY_TARGET=http://127.0.0.1:8010 npm run dev`.
+
+```bash
+npm run build            # tsc --noEmit + production build
+npm test                 # Vitest unit tests for filters and formatting
+```
+
+The sign-in screen lists the three seeded development accounts (admin, ward
+officer, citizen). Citizen accounts are redirected to a "use the mobile app"
+notice; the public portal remains reachable without an account.
+
+---
+
 ## Model evaluation (measured, not estimated)
 
 <!-- EVAL_RESULTS_START -->
 No municipal complaint dataset was available in this environment. Every number
 below is measured by `backend/scripts/evaluate.py` on the deterministic,
 labelled corpus generated by `backend/scripts/seed_dataset.py` (15 wards,
-1,915 complaints, English/Hindi/Kannada, 120 days, labelled duplicate groups and
+1,910 complaints, English/Hindi/Kannada, 120 days, labelled duplicate groups and
 synthetic before/after pairs). Re-run
 
 ```bash
@@ -217,9 +294,9 @@ Corpus fingerprint: `19ba147695e1`
 
 **Duplicate detection** (same ward + category pairs within 0.2 km)
 
-- Candidate pairs: **923**, true duplicates: **603** (base rate 65.3%)
-- Configured threshold **0.85**: precision **93.6%**, recall 100.0%, F1 0.967
-- F1-optimal threshold **0.95**: precision **93.6%**, recall 100.0%, F1 0.967
+- Candidate pairs: **929**, true duplicates: **588** (base rate 63.3%)
+- Configured threshold **0.85**: precision **94.5%**, recall 100.0%, F1 0.972
+- F1-optimal threshold **0.95**: precision **94.5%**, recall 100.0%, F1 0.972
 
 **Resolution verification** (unseen synthetic before/after pairs)
 
@@ -229,7 +306,7 @@ Corpus fingerprint: `19ba147695e1`
 **14-day hotspot forecast**
 
 - Artifact holdout MAE: **0.142** complaints/day
-- Recursive 14-step backtest over 150 series: mean MAE **0.080**, median 0.071
+- Recursive 14-step backtest over 150 series: mean MAE **0.078**, median 0.071
 
 **Language detection** (corpus templates by native script)
 
@@ -265,6 +342,12 @@ docker compose up --build
 | Redis | localhost:6379 |
 | Qdrant | http://localhost:6333 |
 
+Then start the staff console:
+
+```bash
+cd web && npm install && npm run dev      # http://localhost:5173
+```
+
 ### Option B — local processes (no Docker)
 
 Requires Python ≥ 3.11, MongoDB ≥ 6, Redis ≥ 6 (`HELLO`/RESP3 support). Qdrant
@@ -290,11 +373,16 @@ python scripts/warmup_models.py
 python scripts/seed_dataset.py --reset
 python scripts/train_models.py
 python scripts/evaluate.py
+
+# 5. staff console (separate shell)
+cd ../web && npm install && npm run dev
 ```
 
 The seed script creates 15 wards, 10 categories in English/Hindi/Kannada,
 120 days of history, labelled duplicate groups and synthetic resolution pairs.
-See `scripts/seed_dataset.py --help` for the account list and reset behaviour.
+The corpus ends on the current date, so the dashboard windows always contain
+recent activity. See `scripts/seed_dataset.py --help` for the account list and
+reset behaviour.
 
 ---
 
@@ -313,12 +401,18 @@ Interactive documentation: **`/docs`** (Swagger) · `/redoc` · `/openapi.json`
 | `GET /auth/me` | any token | Current account |
 | `POST /users` | admin | Provision ward officers / admins |
 | `GET /users` | admin | Paginated directory with filters |
+| `GET /users/officers` | staff | Officer directory for case assignment |
 | `PATCH /users/{id}/role` | admin | Change role (last-admin guarded) |
 | `PATCH /users/{id}/status` | admin | Activate / deactivate (revokes tokens) |
 | `POST /complaints` | any token | File a complaint (auto ward, officer, SLA, priority) |
 | `GET /complaints` | any token | Filter/sort by ward, category, status, priority, mine |
+| `POST /complaints/bulk/assign` | staff | Bulk assignment with per-case results |
+| `POST /complaints/bulk/status` | staff | Bulk workflow transitions with notes |
 | `POST /complaints/similar` | any token | Similar issues nearby (semantic + geo) |
 | `GET /complaints/{id}` | any token | Detail; reporter identity hidden from strangers |
+| `POST /complaints/{id}/assign` | staff | Assign a case to a ward officer |
+| `GET /complaints/{id}/notes` | staff | Internal notes (staff only) |
+| `POST /complaints/{id}/notes` | staff | Add an internal note |
 | `PATCH /complaints/{id}/status` | staff | Transition-guarded workflow |
 | `POST /complaints/{id}/vote` | any token | Idempotent upvote |
 | `DELETE /complaints/{id}/vote` | any token | Retract a vote |
@@ -332,6 +426,10 @@ Interactive documentation: **`/docs`** (Swagger) · `/redoc` · `/openapi.json`
 | `GET /clusters/recurring/{id}/members` | officer/admin | Cluster members |
 | `GET /forecasts` | any token | 14-day ward/category forecast |
 | `GET /forecasts/wards` | any token | Category outlook for a ward |
+| `GET /forecasts/map` | any token | Per-ward totals for the map overlay |
+| `GET /analytics/overview` | staff | Role-scoped KPIs, trend and category mix |
+| `GET /analytics/map` | staff | Capped, priority-ordered map points |
+| `GET /public/stats` | public | Anonymised ward/category transparency payload |
 | `POST /assistant/query` | any token | Grounded Q&A with role-scoped citations |
 | `GET /assistant/examples` | any token | Example questions |
 | `POST /voice/transcribe` | any token | Upload audio → Whisper transcript + translation |
@@ -386,6 +484,13 @@ python scripts/evaluate.py          # writes var/eval_results.json
 python scripts/smoke.py             # end-to-end check against a running stack
 ```
 
+```bash
+cd web
+npm run build                       # tsc --noEmit + vite build
+npm test                            # Vitest unit tests
+npm run dev                         # dev server on :5173 with /api proxy
+```
+
 - **Tests** use a dedicated Mongo database (`civiclens_test_*`, dropped before
   and after), Redis DB 15, an isolated embedded Qdrant path and a `tiny` Whisper
   model; model artifacts are trained into `var/test_models` on first run.
@@ -405,7 +510,7 @@ weights, clustering, forecasting, assistant) are documented inline there.
 civiclens/
 ├── docker-compose.yml          # api + worker + beat + mongo + redis + qdrant
 ├── .env.example
-└── backend/
+├── backend/
     ├── Dockerfile
     ├── pyproject.toml          # deps, pytest, ruff
     ├── app/
@@ -423,6 +528,11 @@ civiclens/
     │   └── data/corpus.py      # deterministic labelled benchmark corpus
     ├── scripts/                # seed_dataset, train_models, evaluate, smoke, warmup
     └── tests/                  # unit + integration tests
+└── web/                        # React 19 staff console + public portal
+    ├── src/lib/                # typed API client, auth/theme providers, helpers
+    ├── src/components/         # shell, tables, charts, map, evidence, dialogs
+    ├── src/pages/              # overview, queue, detail, map, recurring, assistant, public
+    └── src/styles/             # design tokens, dark theme, component classes
 ```
 
 ---
@@ -439,8 +549,12 @@ civiclens/
   per-category SLA + escalation + audit, before/after resolution verification,
   Whisper STT for en/hi/kn with translation, XGBoost 14-day hotspot forecasts,
   role-scoped RAG assistant, measured model evaluation.
-- [ ] **Phase 3:** Ward dashboards and operational alerting on top of the
-  intelligence layer.
+- [x] **Phase 3 — Authority web console & public portal:** role-scoped analytics
+  (overview + map), filterable/bulk-action complaint queue, full case detail with
+  evidence, verification, priorities, timeline and internal notes, clustered
+  city map with ward boundaries, heat and forecast overlays, recurring-cluster
+  workspace with trends, grounded assistant UI, and an unauthenticated aggregate
+  transparency portal. React + TypeScript + Vite with a CSS-variable dark theme.
 - [ ] **Phase 4:** Flutter client + deployment polish.
 
 ## License
