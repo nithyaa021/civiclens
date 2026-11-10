@@ -54,6 +54,20 @@ async def recompute(db: AsyncIOMotorDatabase, settings: Settings) -> dict[str, A
 
     clusters = await run_in_threadpool(cluster_complaints, rows, embeddings, settings=settings)
 
+    # Sparkline series for the recurring-issues screen: member reports per day
+    # over the last 14 days (oldest first).
+    trend_start = (now - timedelta(days=13)).date()
+    for cluster in clusters:
+        member_ids = {str(cid) for cid in cluster["complaint_ids"]}
+        counts: dict[Any, int] = {}
+        for row in rows:
+            if str(row["_id"]) in member_ids:
+                day = row["created_at"].date()
+                counts[day] = counts.get(day, 0) + 1
+        cluster["trend"] = [
+            counts.get(trend_start + timedelta(days=offset), 0) for offset in range(14)
+        ]
+
     # Replace the derived collection atomically enough for readers: write the
     # new documents first, then drop the stale ones by id.
     new_ids = [cluster.pop("cluster_key") for cluster in clusters]
@@ -137,6 +151,7 @@ def serialize_cluster(doc: dict[str, Any]) -> RecurringCluster:
         },
         dominant_ward=doc.get("dominant_ward"),
         complaint_ids=[str(cid) for cid in doc["complaint_ids"]],
+        trend=[int(value) for value in doc.get("trend", [])],
         computed_at=doc["computed_at"],
     )
 

@@ -69,6 +69,9 @@ INDEX_SPECS: dict[str, list[tuple[list[tuple[str, int]], dict]]] = {
         ([("at", DESCENDING)], {"name": "audit_time"}),
         ([("action", ASCENDING), ("at", DESCENDING)], {"name": "audit_action_time"}),
     ],
+    "complaint_notes": [
+        ([("complaint_id", ASCENDING), ("created_at", ASCENDING)], {"name": "note_complaint_time"}),
+    ],
 }
 
 

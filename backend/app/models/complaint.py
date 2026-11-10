@@ -309,6 +309,10 @@ class RecurringCluster(BaseModel):
     affected_area: ClusterAffectedArea
     dominant_ward: int | None = None
     complaint_ids: list[str] = Field(description="Member complaint ids (citations for the UI).")
+    trend: list[int] = Field(
+        default_factory=list,
+        description="Daily report counts for the last 14 days (oldest first).",
+    )
     computed_at: datetime
 
 
@@ -335,6 +339,62 @@ class AuditEvent(BaseModel):
 class AuditPage(BaseModel):
     items: list[AuditEvent]
     total: int
+
+
+class InternalNoteCreate(BaseModel):
+    """Staff-only note stored against a complaint."""
+
+    note: str = Field(min_length=1, max_length=2000)
+
+
+class InternalNote(BaseModel):
+    """One internal note with its author, visible to staff only."""
+
+    id: str
+    complaint_id: str
+    author_id: str
+    author_name: str
+    author_role: str
+    note: str
+    created_at: datetime
+
+
+class InternalNoteList(BaseModel):
+    items: list[InternalNote]
+    total: int
+
+
+class BulkAssignRequest(BaseModel):
+    """Assign several complaints to one ward officer."""
+
+    complaint_ids: list[str] = Field(min_length=1, max_length=100)
+    officer_id: str
+
+
+class AssignRequest(BaseModel):
+    """Assign one complaint to a ward officer."""
+
+    officer_id: str
+
+
+class BulkStatusRequest(BaseModel):
+    """Apply the same workflow transition to several complaints."""
+
+    complaint_ids: list[str] = Field(min_length=1, max_length=100)
+    status: ComplaintStatus
+    note: str | None = Field(default=None, max_length=500)
+
+
+class BulkFailure(BaseModel):
+    complaint_id: str
+    error: str
+
+
+class BulkResult(BaseModel):
+    updated: int = Field(ge=0)
+    items: list[ComplaintPublic] = Field(default_factory=list)
+    failed: list[BulkFailure] = Field(default_factory=list)
+
 
 
 class ResolutionDecision(BaseModel):

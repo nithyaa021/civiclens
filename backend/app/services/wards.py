@@ -9,7 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.ai.clustering import haversine_km
 from app.core.errors import ApiError, NotFoundError
-from app.models.ward import GeoPoint, SensitiveLocation, WardPublic
+from app.models.ward import GeoPoint, GeoPolygon, SensitiveLocation, WardPublic
 
 
 def ward_public(doc: dict[str, Any], *, complaint_count: int = 0) -> WardPublic:
@@ -23,6 +23,7 @@ def ward_public(doc: dict[str, Any], *, complaint_count: int = 0) -> WardPublic:
         name=doc["name"],
         zone=doc["zone"],
         centroid=centroid,
+        geometry=GeoPolygon(type="Polygon", coordinates=[[tuple(p) for p in ring]]),
         sensitive_locations=[
             SensitiveLocation(**item) for item in doc.get("sensitive_locations", [])
         ],

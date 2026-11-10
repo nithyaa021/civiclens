@@ -11,6 +11,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.ai.forecast import load_artifact, predict_next_days
 from app.core.config import Settings
 from app.core.errors import ApiError
+from app.models.analytics import ForecastMapResponse, WardForecastSummary
 from app.models.complaint import ComplaintCategory, ForecastPoint, ForecastResponse
 
 
@@ -117,3 +118,43 @@ async def known_wards(db: AsyncIOMotorDatabase) -> list[int]:
         return sorted(ward_numbers)
     ids = await db["complaints"].distinct("ward")
     return sorted(int(item) for item in ids if item is not None)
+
+
+async def forecast_map(
+    db: AsyncIOMotorDatabase,
+    *,
+    category: ComplaintCategory,
+    horizon_days: int,
+    settings: Settings,
+) -> ForecastMapResponse:
+    """Aggregate 14-day forecasts for every ward, for the map overlay."""
+    items: list[WardForecastSummary] = []
+    for ward in await known_wards(db):
+        try:
+            response = await forecast(
+                db,
+                ward=ward,
+                category=category,
+                horizon_days=horizon_days,
+                settings=settings,
+            )
+        except ApiError as error:
+            if error.status_code in (409, 503):
+                continue
+            raise
+        peak = max(response.points, key=lambda point: point.predicted, default=None)
+        items.append(
+            WardForecastSummary(
+                ward=ward,
+                total_predicted=sum(point.predicted for point in response.points),
+                peak_day=peak.date.date() if peak else None,
+                peak_predicted=peak.predicted if peak else 0,
+            )
+        )
+    return ForecastMapResponse(
+        category=category,
+        horizon_days=horizon_days,
+        items=items,
+        generated_at=datetime.now(UTC),
+    )
+

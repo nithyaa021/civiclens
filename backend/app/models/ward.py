@@ -87,5 +87,6 @@ class WardPublic(BaseModel):
     name: str = Field(examples=["Jayanagar"])
     zone: str = Field(examples=["South Zone"])
     centroid: GeoPoint = Field(description="Polygon centroid, used for map markers.")
+    geometry: GeoPolygon = Field(description="Ward boundary ring (closed GeoJSON polygon).")
     sensitive_locations: list[SensitiveLocation] = Field(default_factory=list)
     complaint_count: int = Field(default=0, description="Open complaints in this ward.")

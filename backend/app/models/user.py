@@ -106,6 +106,14 @@ class UserPublic(BaseModel):
     created_at: datetime = Field(description="Account creation timestamp (UTC).")
 
 
+class OfficerRef(BaseModel):
+    """Minimal officer card for assignment pickers (staff-readable)."""
+
+    id: str
+    full_name: str
+    ward: int | None
+
+
 class UserUpdateRole(BaseModel):
     """Admin payload for changing an account's role."""
 
