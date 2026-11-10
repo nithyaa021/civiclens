@@ -18,6 +18,7 @@ Passwords are printed at the end (development-only accounts).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -48,6 +49,7 @@ DOMAIN_COLLECTIONS = [
     "notifications",
     "job_results",
     "embeddings",
+    "complaint_notes",
 ]
 
 
@@ -142,7 +144,23 @@ def build_document(
         ComplaintStatus.ASSIGNED,
         ComplaintStatus.IN_PROGRESS,
     )
-    breached = open_status and due_at <= now
+    resolved_at: datetime | None = None
+    closed_at: datetime | None = None
+    if seed.status in (ComplaintStatus.RESOLVED, ComplaintStatus.CLOSED):
+        # Deterministic, category-aware completion time so the dashboard has
+        # realistic resolution durations instead of every job finishing in 0 s.
+        digest = hashlib.sha256(f"{seed.seed_id}:resolution".encode()).digest()
+        factor = 0.35 + int.from_bytes(digest[:2], "big") / 65535 * 2.2
+        age_hours = max(1.0, (now - seed.created_at).total_seconds() / 3600)
+        hours = min(target_hours * factor, age_hours * 0.82)
+        resolved_at = seed.created_at + timedelta(hours=hours)
+        if seed.status == ComplaintStatus.CLOSED:
+            closed_at = min(resolved_at + timedelta(hours=2), now)
+    breached = (
+        resolved_at > due_at
+        if resolved_at is not None
+        else (open_status and due_at <= now)
+    )
     sla = SlaState(
         target_hours=target_hours,
         due_at=due_at,
@@ -159,7 +177,7 @@ def build_document(
         votes=seed.votes,
         cluster_count=0,
         created_at=seed.created_at,
-        resolved_at=None,
+        resolved_at=resolved_at,
         now=now,
         nearest_sensitive_km=nearest,
         weights=settings.priority_weights,
@@ -193,11 +211,13 @@ def build_document(
         "priority": priority.model_dump(),
         "sla": sla.model_dump(),
         "resolution": None,
+        "resolved_at": resolved_at,
+        "closed_at": closed_at,
         "cluster_id": None,
         "attachments": [],
         "embedding": embedding,
         "created_at": seed.created_at,
-        "updated_at": seed.created_at,
+        "updated_at": closed_at or resolved_at or seed.created_at,
         "benchmark": {
             "corpus": "seed-v1",
             "seed_id": seed.seed_id,
@@ -249,7 +269,7 @@ def main() -> int:
     officer_by_ward = {doc["ward"]: doc for doc in officers}
     print(f"Users: 1 admin, {len(officers)} ward officers, {len(citizens)} citizens")
 
-    seeds = generate_complaints(days=args.days)
+    seeds = generate_complaints(days=args.days, end_date=datetime.now(UTC).date())
     print(f"Generated {len(seeds)} complaints via app.data.corpus")
 
     # Embed every unique (English where available) text once, then reuse by text.

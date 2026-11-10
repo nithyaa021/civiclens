@@ -91,6 +91,16 @@ OPENAPI_TAGS = [
         "description": "14-day complaint-volume hotspot forecasts per ward and category.",
     },
     {
+        "name": "analytics",
+        "description": (
+            "Authority dashboard aggregations: KPIs, trends, category mix and map points."
+        ),
+    },
+    {
+        "name": "public",
+        "description": "Unauthenticated, anonymised transparency statistics.",
+    },
+    {
         "name": "assistant",
         "description": "Role-scoped natural-language questions over complaint data.",
     },

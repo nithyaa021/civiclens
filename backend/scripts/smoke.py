@@ -23,6 +23,7 @@ import uuid
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+
 import httpx
 from PIL import Image
 

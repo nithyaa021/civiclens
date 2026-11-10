@@ -1116,17 +1116,23 @@ def generate_complaints(
         if age_days > 21:
             status = rng.choices(
                 [ComplaintStatus.CLOSED, ComplaintStatus.RESOLVED, ComplaintStatus.IN_PROGRESS],
-                weights=[0.72, 0.18, 0.10],
+                weights=[0.82, 0.16, 0.02],
             )[0]
         elif age_days > 7:
             status = rng.choices(
                 [ComplaintStatus.CLOSED, ComplaintStatus.RESOLVED, ComplaintStatus.IN_PROGRESS],
-                weights=[0.30, 0.30, 0.40],
+                weights=[0.38, 0.42, 0.20],
             )[0]
         else:
             status = rng.choices(
-                [ComplaintStatus.SUBMITTED, ComplaintStatus.ASSIGNED, ComplaintStatus.IN_PROGRESS],
-                weights=[0.2, 0.5, 0.3],
+                [
+                    ComplaintStatus.SUBMITTED,
+                    ComplaintStatus.ASSIGNED,
+                    ComplaintStatus.IN_PROGRESS,
+                    ComplaintStatus.RESOLVED,
+                    ComplaintStatus.CLOSED,
+                ],
+                weights=[0.15, 0.35, 0.30, 0.12, 0.08],
             )[0]
         final.append(
             ComplaintSeed(
