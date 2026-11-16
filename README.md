@@ -1,55 +1,179 @@
 # CivicLens AI
 
-**A municipal complaint intelligence platform.** Citizens file civic complaints in
-English, Hindi or Kannada (text or voice); the service resolves the ward, detects
-duplicates, assigns the responsible officer, starts an SLA clock, scores priority
-from a transparent weighted breakdown, clusters recurring issues, verifies
-before/after photo evidence and forecasts hotspot volume. A role-scoped assistant
-answers questions and always cites real complaint IDs.
+**Civic complaints become a ranked, verifiable repair queue — multilingual
+intake, duplicate detection, SLA enforcement and photo-verified closure in one
+municipal platform.**
 
-> **Status:** Phases 1–3 are complete and verified. Every AI number in this
-> README was measured on the deterministic, labelled corpus in
-> `backend/app/data/corpus.py` by `backend/scripts/evaluate.py` - no hand-written
-> or mocked metrics.
+Citizens report potholes, garbage, broken streetlights, water leakage, drainage,
+encroachment and stray animals in English, Hindi or Kannada (text or voice). The
+service resolves the ward, finds nearby duplicate reports, assigns the
+responsible officer, starts an SLA clock, scores priority from a transparent
+weighted breakdown, clusters recurring issues, verifies before/after photo
+evidence and forecasts hotspot volume. A role-scoped assistant answers questions
+and always cites real complaint IDs.
+
+> **Status:** Phases 1–4 are complete and verified end-to-end (108 backend
+> tests, 11 frontend tests, real worker/broker smoke run). Phase 5 ships the
+> Render + Vercel deployment, GitHub Actions pipeline, demo assets and the
+> documentation below. Every AI number in this README was measured on the
+> deterministic, labelled corpus in `backend/app/data/corpus.py` by
+> `backend/scripts/evaluate.py` — no hand-written or mocked metrics.
+
+![CivicLens walkthrough](docs/demo.gif)
+
+*28-second walkthrough: sign in, ward-scoped overview, complaint queue, case
+detail with verification evidence, city map and the public transparency portal.*
+
+---
+
+## Live demo
+
+The production topology is defined in [`render.yaml`](render.yaml) (API, Celery
+worker and Redis) and [`web/vercel.json`](web/vercel.json) (static SPA on
+Vercel). MongoDB Atlas and Qdrant Cloud provide the managed database and vector
+store. See [`docs/DEPLOY.md`](docs/DEPLOY.md) for the 15-minute walkthrough.
+
+| Surface | URL |
+|---|---|
+| Staff console (Vercel) | `https://<your-project>.vercel.app` |
+| Public transparency portal | `https://<your-project>.vercel.app/public` |
+| API reference (Swagger UI) | `https://<your-api-service>.onrender.com/docs` |
+| OpenAPI schema | `https://<your-api-service>.onrender.com/openapi.json` |
+
+The sign-in page lists these seeded development accounts. They are created by
+`backend/scripts/seed_dataset.py` and exist in any seeded environment.
+
+| Role | Email | Password | What to try |
+|---|---|---|---|
+| Admin | `admin@civiclens.dev` | `Admin#12345` | Every ward, analytics, user administration |
+| Ward officer | `officer12@civiclens.dev` | `Officer#12345` | Ward 12 queue, notes, after-photo resolution |
+| Citizen | `citizen1@civiclens.dev` | `Citizen#12345` | File, vote, confirm or dispute a fix |
+
+The console is an authority tool: citizen accounts can sign in but are redirected
+to a "use the mobile app" notice. The public portal is reachable without an
+account.
+
+---
+
+## Screenshots
+
+| Overview — dark | Overview — light |
+|---|---|
+| ![Overview, dark theme](docs/screenshots/02-overview-dark.png) | ![Overview, light theme](docs/screenshots/03-overview-light.png) |
+
+| Complaint queue | Case detail |
+|---|---|
+| ![Complaint queue](docs/screenshots/04-queue.png) | ![Complaint detail](docs/screenshots/05-complaint-detail.png) |
+
+![City map](docs/screenshots/06-map.png)
+
+| Recurring issues | Operations assistant |
+|---|---|
+| ![Recurring issues](docs/screenshots/07-recurring.png) | ![Operations assistant](docs/screenshots/08-assistant.png) |
+
+![Public transparency portal](docs/screenshots/09-public-portal.png)
+
+All screenshots are captured from the seeded, running stack — not mockups. The
+public portal screenshot shows the ward "personalities" the corpus encodes:
+Shivajinagar averages 4.1 days and 11% SLA compliance, while Indiranagar averages
+2.0 days and 36%.
+
+---
+
+## Features
+
+### Intake and triage
+
+- **Multilingual complaints** — English, Hindi and Kannada text with automatic
+  language detection, translation and category classification.
+- **Voice reports** — faster-whisper transcription with language detection and an
+  English translation stored beside the original transcript.
+- **Ward resolution by geometry** — point-in-polygon lookup across 25 Bengaluru
+  wards in eight BBMP zones, then automatic assignment to the oldest active ward
+  officer.
+- **Similar-issue search before filing** — multilingual embeddings plus a
+  geo-radius filter; joining a duplicate links the report instead of creating a
+  parallel ticket.
+- **Upvotes, not noise** — idempotent vote/retract endpoints feed frequency into
+  the priority score.
+
+### Operations
+
+- **Transparent priority score** — severity, votes, cluster density, age and
+  proximity to sensitive sites, with every weight and contribution returned to
+  the client.
+- **Per-category SLAs** — due dates fixed at filing, a beat task marks breaches,
+  escalates `city → command`, writes an immutable audit event and notifies the
+  reporter.
+- **Recurring-issue clustering** — DBSCAN over a combined geographic + semantic
+  distance matrix, with members, centroid, radius, open count and a 14-day trend.
+- **Before/after verification** — CLIP scene similarity, SSIM and defect features
+  scored by a trained comparator; citizens confirm (`closed`) or dispute
+  (`in_progress`), and every path is audited.
+- **Grounded assistant** — nearest-neighbour intent matching and structured
+  queries, with citations scoped to the caller's role. It never invents a
+  complaint ID.
+- **Forecasting** — a global XGBoost regressor predicts daily volume per
+  `(ward, category)` for 14 days, using a strict time-based holdout.
+
+### Authority console and public accountability
+
+- **Overview** — KPIs, 7/30/90/180-day trends, category mix, highest-priority
+  cases and open load by ward.
+- **Queue** — server-side search and filters, four sort orders, saved views, row
+  selection, bulk assignment and bulk transitions with per-case results.
+- **Case detail** — original language + translation, evidence gallery, location
+  map, priority breakdown, SLA state, verification confidence, similar issues,
+  audit trail, internal notes and guarded transitions.
+- **City map** — clustered markers, ward boundaries, heat layer, category colours
+  and a forecast overlay, with an explicit truncation notice.
+- **Recurring issues** — cluster workspace with sparklines, direction, radius and
+  on-demand recompute.
+- **Public portal** — city totals and a sortable ward table with anonymised
+  resolutions. No authentication; aggregate data only.
+- **Dark/light themes**, loading/empty/error states everywhere, keyboard-visible
+  focus and a skip link.
 
 ---
 
 ## Architecture
 
-```text
-                 ┌─────────────────────────────────────────────────────┐
-                 │            clients (Flutter / web / curl)           │
-                 └──────────────────────────┬──────────────────────────┘
-                                            │ HTTPS + Bearer JWT
-                 ┌──────────────────────────▼──────────────────────────┐
-                 │  api — FastAPI (uvicorn)                            │
-                 │  • /api/v1 versioned routes · /docs (OpenAPI)       │
-                 │  • JWT auth + RBAC (citizen / ward_officer / admin) │
-                 │  • complaints, clusters, forecasts, assistant,      │
-                 │    voice, media, audit trail                        │
-                 │  • sliding-window rate limiting (Redis Lua)         │
-                 │  • structured JSON logs + request-id propagation    │
-                 └───────┬──────────────┬───────────────┬──────────────┘
-                         │ Motor        │ .delay()      │ ANN / vectors
-                         ▼              ▼               ▼
-              ┌──────────────┐  ┌─────────────┐  ┌──────────────────┐
-              │   MongoDB    │  │    Redis    │  │      Qdrant      │
-              │ users,       │  │ broker +    │  │ complaint + CLIP │
-              │ complaints,  │  │ results +   │  │ embeddings       │
-              │ clusters,    │  │ rate limits │  │ (cosine + geo)   │
-              │ media, audit │  └──────┬──────┘  └──────────────────┘
-              └──────▲───────┘         │
-                     │ pymongo         │
-              ┌──────┴──────────────────▼─────────────────────────────┐
-              │  worker — Celery (prefork)  ·  beat — Celery scheduler│
-              │  • enrich: language detect → translate → classify →   │
-              │    embed → index in Qdrant                            │
-              │  • transcribe: faster-whisper (en / hi / kn)          │
-              │  • resolution: CLIP + SSIM comparator                 │
-              │  • analysis: image metrics, notifications             │
-              │  • maintenance: SLA sweep + analytics recompute       │
-              └───────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+  subgraph Clients["Clients"]
+    WEB["React 19 console<br/>Vercel static SPA"]
+    PUB["Public portal<br/>unauthenticated"]
+    APP["Citizen app / curl"]
+  end
+
+  subgraph Render["Render (Docker)"]
+    API["FastAPI API<br/>/api/v1 · /docs · JWT + RBAC"]
+    WORKER["Celery worker<br/>enrich · transcribe · verify"]
+    BEAT["Celery beat<br/>SLA sweep · analytics"]
+    REDIS[("Redis<br/>broker · results · rate limits")]
+  end
+
+  ATLAS[("MongoDB Atlas<br/>users · complaints · media · audit")]
+  QDRANT[("Qdrant Cloud<br/>complaint + CLIP vectors")]
+  TILES["OpenStreetMap tiles"]
+
+  WEB -->|HTTPS + Bearer JWT| API
+  PUB --> API
+  APP --> API
+  WEB --> TILES
+  API --> ATLAS
+  API --> REDIS
+  API --> QDRANT
+  API -->|".delay()"| REDIS
+  REDIS --> WORKER
+  BEAT --> REDIS
+  WORKER --> ATLAS
+  WORKER --> QDRANT
 ```
+
+Locally, Docker Compose runs the API, worker, beat, MongoDB, Redis and a Qdrant
+server together. The API is stateless; media bytes live in MongoDB, so the API
+and worker can run on separate hosts without a shared disk.
 
 ### Tech stack
 
@@ -60,7 +184,7 @@ answers questions and always cites real complaint IDs.
 | Database | MongoDB 7 via Motor (async) in the API, pymongo in workers |
 | Cache / broker | Redis 7 — Celery broker & result backend, rate limiting, token revocation |
 | Async jobs | Celery 5 (queue `civiclens`) + Celery beat |
-| Vector search | Qdrant — embedded on-disk mode for dev, server in Docker Compose |
+| Vector search | Qdrant — embedded on-disk for dev/tests, server in Compose and Qdrant Cloud in production |
 | Embeddings | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (384-d, fastembed/ONNX) |
 | Classification | char n-gram TF-IDF + logistic regression (scikit-learn) |
 | Clustering | scikit-learn DBSCAN over a combined geo + cosine distance matrix |
@@ -69,11 +193,13 @@ answers questions and always cites real complaint IDs.
 | Resolution check | CLIP ViT-B/32 vision embeddings + SSIM/defect features + logistic regression |
 | Forecast | global XGBoost regressor over per-(ward, category) daily counts |
 | Web console | React 19 + TypeScript + Vite, TanStack Query, React Router, Tailwind |
-| Charts & maps | Recharts, Leaflet + marker clustering + heat layer, CARTO basemaps |
-| Web testing | Vitest unit tests for formatting and saved-filter persistence (in-memory storage fake) |
+| Charts & maps | Recharts, Leaflet + marker clustering + heat layer, key-free OpenStreetMap tiles (CSS-filtered in dark mode) |
+| Web testing | Vitest unit tests for formatting and saved-filter persistence |
 | Observability | structlog (JSON in production), request-id middleware, `/health` probes |
 | Testing | pytest + pytest-asyncio + httpx ASGI transport |
-| Packaging | Docker + docker-compose (api, worker, beat, mongo, redis, qdrant) |
+| Local packaging | Docker + docker-compose (api, worker, beat, mongo, redis, qdrant) |
+| Production | Render (API + worker + Redis), Vercel (SPA), MongoDB Atlas, Qdrant Cloud |
+| CI/CD | GitHub Actions: ruff, pytest, `tsc` + Vite build, Vitest, guarded deploy hooks |
 
 ---
 
@@ -89,11 +215,11 @@ Before filing, the client can call `POST /api/v1/complaints/similar` with
 free text + a location. Non-English text is translated to English first, then
 embedded with the multilingual model and searched in Qdrant with a category
 filter and a geo-radius filter (`SIMILAR_GEO_RADIUS_KM=0.2`,
-`SIMILAR_MIN_SCORE=0.85`). Indexing and querying the English text matters:
-raw Kannada↔English cosine similarity is ~0.02, while translated duplicates
-score above 0.8. Results carry `complaint_id`, cosine score, distance in km and
-a ready-to-show complaint preview. Filing with `duplicate_of` links the new
-report to the original instead of creating a parallel ticket.
+`SIMILAR_MIN_SCORE=0.85`). Indexing and querying the English text matters: raw
+Kannada↔English cosine similarity is ~0.02, while translated duplicates score
+above 0.8. Results carry `complaint_id`, cosine score, distance in km and a
+ready-to-show complaint preview. Filing with `duplicate_of` links the new report
+to the original instead of creating a parallel ticket.
 
 `POST /api/v1/complaints/{id}/vote` and `DELETE` are idempotent upvote /
 retraction operations; the vote count feeds the priority formula.
@@ -177,9 +303,9 @@ category-level outlook for every category in a ward.
 `POST /api/v1/assistant/query` embeds the question, matches it against curated
 intent examples (nearest neighbour), fills slots (ward, category, period,
 complaint id), runs a structured MongoDB query and renders a deterministic
-answer. Citations are scoped by role: citizens see only their own reports,
-ward officers only their ward, admins see everything. The answer never invents
-a complaint ID.
+answer. Citations are scoped by role: citizens see only their own reports, ward
+officers only their ward, admins see everything. The answer never invents a
+complaint ID.
 
 ---
 
@@ -215,6 +341,10 @@ portal that only ever receives aggregate ward data.
   theme and charts/maps re-colour with the rest of the UI.
 - Staff routes are code-split; the public portal and sign-in stay in the initial
   bundle, so anonymous visitors never download the map or chart code.
+- The sidebar links to the deployed Swagger UI (`/docs`) and the public portal.
+- Lighthouse on the production build (desktop 1440×900, gzip + immutable assets):
+  **performance 99**, **accessibility 100**, **best practices 100**, with no
+  console errors or failed requests.
 
 ### Backend additions for Phase 3
 
@@ -230,10 +360,10 @@ portal that only ever receives aggregate ward data.
 | `POST /complaints/{id}/assign` | staff | Single-case assignment |
 | `GET/POST /complaints/{id}/notes` | staff | Internal notes, never exposed to reporters |
 
-Ward documents now store their boundary polygon (used by both the map and the
-public payload), and recurring clusters store a 14-day daily trend. The seed
-corpus now ends at the current date and stores deterministic resolution and
-closure timestamps, so dashboard windows always contain realistic activity.
+Ward documents store their boundary polygon (used by both the map and the public
+payload), and recurring clusters store a 14-day daily trend. The seed corpus ends
+at the current date and stores deterministic resolution and closure timestamps,
+so dashboard windows always contain realistic activity.
 
 ### Running the web console
 
@@ -244,16 +374,42 @@ npm run dev              # http://localhost:5173, proxies /api to :8000
 ```
 
 Set `VITE_API_PROXY_TARGET` to point the dev server at another API instance, for
-example `VITE_API_PROXY_TARGET=http://127.0.0.1:8010 npm run dev`.
+example `VITE_API_PROXY_TARGET=http://127.0.0.1:8010 npm run dev`. In production,
+`VITE_API_BASE_URL` is baked in at build time (empty means same-origin).
 
 ```bash
 npm run build            # tsc --noEmit + production build
 npm test                 # Vitest unit tests for filters and formatting
 ```
 
-The sign-in screen lists the three seeded development accounts (admin, ward
-officer, citizen). Citizen accounts are redirected to a "use the mobile app"
-notice; the public portal remains reachable without an account.
+---
+
+## Phase 4 — realistic city-scale seed corpus
+
+No municipal dataset was available, so the demo runs on a deterministic corpus
+that behaves like a city rather than uniform noise:
+
+- **25 real Bengaluru wards** across eight BBMP zones, each with its own
+  boundary polygon and sensitive-site list.
+- **3,458 complaints over 180 days** (mixed English/Hindi/Kannada) with a
+  category mix covering potholes, garbage, streetlights, water leakage,
+  drainage, encroachment, stray animals, parks, noise and traffic signals.
+- **Ward personalities** — `_WARD_PROFILE` sets a complaint volume, severity
+  shift and resolution-speed multiplier per ward, so charts show genuine
+  ward-to-ward differences and some wards genuinely run hot.
+- **Realistic addresses** — zone-specific street lists and landmark names, with
+  jittered coordinates near real road geometry.
+- **Labelled duplicates** — same-ward, same-category pairs within 200 m with
+  controlled true/false labels for evaluation.
+- **Synthetic before/after pairs** — generated image pairs with known fixed /
+  unfixed labels for resolution verification.
+- **Full lifecycles** — statuses, vote counts, resolution and closure timestamps,
+  SLA breaches and duplicate links spread across the whole period.
+
+The corpus is generated by `backend/app/data/corpus.py` and loaded by
+`backend/scripts/seed_dataset.py`; the evaluator and trainers read the same
+source, so metrics and demo data can never drift apart. `seed-v2` replaced the
+original uniform corpus in Phase 4.
 
 ---
 
@@ -322,6 +478,10 @@ Corpus fingerprint: `19ba147695e1`
 - hi: नाला बंद होने से सड़क पर पानी -> *Water on the road from drainage*
 <!-- EVAL_RESULTS_END -->
 
+The 100% resolution score is expected on synthetic pairs with clean fixed /
+unfixed transformations; it is a regression check on the comparator pipeline,
+not evidence of real-world photographic accuracy. See
+[Design decisions](#design-decisions-and-trade-offs).
 
 ---
 
@@ -348,10 +508,20 @@ Then start the staff console:
 cd web && npm install && npm run dev      # http://localhost:5173
 ```
 
+Seed and (optionally) train on first run; the hosted blueprint seeds the corpus
+and installs the bundled artifacts automatically:
+
+```bash
+docker compose exec api python scripts/seed_dataset.py --reset
+docker compose exec api python scripts/train_models.py
+```
+
 ### Option B — local processes (no Docker)
 
 Requires Python ≥ 3.11, MongoDB ≥ 6, Redis ≥ 6 (`HELLO`/RESP3 support). Qdrant
-runs embedded on disk by default (`QDRANT_PATH`); no separate server is needed.
+runs embedded on disk by default (`QDRANT_PATH`); no separate server is needed
+for a single-process setup. Multi-process development (API + worker) needs a
+Qdrant server so both processes share one collection.
 
 ```bash
 # 1. infrastructure
@@ -388,9 +558,55 @@ dashboard windows always contain recent activity. See `scripts/seed_dataset.py
 
 ---
 
+## Deployment
+
+The checked-in production topology:
+
+- [`render.yaml`](render.yaml) — Render Blueprint with three services:
+  `civiclens-api` (Docker, FastAPI), `civiclens-worker` (Docker, Celery) and
+  `civiclens-redis` (Render-managed Redis). The API and worker run
+  `backend/scripts/bootstrap_deploy.py` on boot; it seeds 3,458 complaints when
+  the database is empty and installs the deterministic 1.4 MB model artifacts
+  bundled in the image. A Mongo-based lock means the two services never
+  double-seed. Set `CIVICLENS_FORCE_BOOTSTRAP=1` to reseed and retrain on a
+  later deploy.
+- [`web/vercel.json`](web/vercel.json) — Vercel Vite build, SPA rewrites and
+  immutable asset caching.
+- [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — ruff + pytest with
+  Mongo/Redis service containers, `npm ci` + `tsc` + Vite build + Vitest, then a
+  guarded deploy job (Render deploy hook and Vercel CLI) that only runs on
+  `main` when the secrets exist.
+
+MongoDB Atlas and Qdrant Cloud are external because Render offers neither. The
+API and Redis run on Render's free tier; the Celery worker uses the smallest
+paid instance (`0.5c-512mb`, $7/month) because free compute plans are web-only.
+The full walkthrough — Atlas M0, Qdrant Cloud free tier, Render secrets, Vercel
+env vars, CORS, deploy hooks and the post-deploy checklist — is in
+[`docs/DEPLOY.md`](docs/DEPLOY.md).
+
+Required production secrets:
+
+| Variable | Where | Value |
+|---|---|---|
+| `MONGO_URI` | Render | MongoDB Atlas SRV connection string |
+| `QDRANT_URL` | Render | `https://<cluster>.<region>.qdrant.io:6333` |
+| `QDRANT_API_KEY` | Render | Qdrant Cloud API key |
+| `JWT_SECRET` | Render | 48+ random bytes (`secrets.token_urlsafe(48)`) |
+| `CORS_ORIGINS` | Render | `["https://<project>.vercel.app"]` |
+| `RENDER_DEPLOY_HOOK` | GitHub Actions | Render deploy hook URL |
+| `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` | GitHub Actions | Vercel CLI credentials |
+
+The frontend needs one build-time variable on Vercel:
+`VITE_API_BASE_URL=https://<service>.onrender.com`. Without it the SPA calls
+relative `/api/v1` paths (correct for the dev proxy, wrong for a split deploy).
+
+---
+
 ## API overview (`/api/v1`)
 
-Interactive documentation: **`/docs`** (Swagger) · `/redoc` · `/openapi.json`
+Interactive documentation: **`/docs`** (Swagger) · `/redoc` · `/openapi.json`.
+The console sidebar links to `/docs`; the deployed URL is listed in
+[Live demo](#live-demo).
 
 | Method & path | Access | Purpose |
 |---|---|---|
@@ -474,6 +690,91 @@ Rate-limited responses additionally carry `Retry-After`.
 
 ---
 
+## Design decisions and trade-offs
+
+Each choice below favours auditability and a working demo over maximum model
+scores or minimum infrastructure.
+
+**Deterministic synthetic corpus over real BBMP data.** Real complaint dumps are
+not licensed for redistribution and are full of missing categories and duplicate
+noise. A seeded corpus with stable fingerprints makes every metric reproducible
+and lets screenshots and evaluation share one source of truth. The trade-off is
+that distribution shifts, adversarial text and messy geo data are underrepresented;
+the state classifier and duplicate recall should be re-measured before any pilot.
+
+**Char n-gram TF-IDF + logistic regression over a transformer classifier.** The
+classifier trains in seconds on CPU, has inspectable coefficients and runs
+inside the free API container. The cost is 55% holdout accuracy — civic
+categories such as `sanitation` vs `waste_management` overlap heavily. A
+multilingual transformer would likely add 15–25 points but would add a GPU
+dependency and a much larger image.
+
+**English-pivot translation before embedding.** Kannada↔English raw cosine
+similarity is ~0.02; translating to English first pushes true duplicates above
+0.8. The trade-off is latency and a 600M-parameter ONNX translation model on
+the worker. When translation is unavailable the API degrades to original-text
+embeddings rather than failing the request.
+
+**DBSCAN over a combined geo + semantic distance.** DBSCAN needs no `k`,
+finds arbitrary-shaped clusters and naturally labels noise as noise, which suits
+sporadic civic reports. It is batch-computed and `eps`-sensitive; a slowly
+drifting `eps` across seasons would require recalibration. Recompute is on-demand
+or periodic rather than streaming.
+
+**Hand-weighted priority score over a learned ranker.** Every point in the score
+is explainable to a councillor or an auditor, and the client can show the exact
+breakdown. A learned ranker could improve dispatch outcomes but would need
+labelled outcomes and would be harder to defend in a public audit. Weights are
+configuration, not code.
+
+**Before/after comparison with CLIP + SSIM, not a single end-to-end model.**
+The six features are individually reportable, and the comparator can be retrained
+on a handful of labelled pairs. Synthetic pairs make the measured accuracy 100%,
+which overstates real-world performance; the feature set is the honest part, and
+the demo should be read as a pipeline check. Real deployments need a labelled
+photo set from the field.
+
+**Grounded retrieval assistant instead of an LLM.** Answers are assembled from
+structured queries and carry real complaint IDs; the system cannot hallucinate a
+ticket. The cost is narrower phrasing and fixed intents. An LLM could be layered
+on top later, but only with the same citation contract and role scoping.
+
+**Celery + Redis rather than FastAPI background tasks.** Enrichment, Whisper,
+CLIP and forecasting need retries, a separate worker process and a beat schedule
+for SLA sweeps. The trade-off is operational complexity: one more service to
+deploy and monitor. Render runs the API and worker as separate services.
+
+**MongoDB Atlas + Qdrant Cloud on Render.** Render does not offer managed Mongo
+or Qdrant, so the Blueprint composes four providers. The API, Redis and both
+managed free tiers cost nothing; the Celery worker is $7/month because Render's
+free compute plans are web-only. This keeps the demo cheap and reproducible but
+means it depends on external free tiers, each with its own cold-start and quota
+behaviour. Free Render web services also spin down after inactivity; the first
+request can take a minute.
+
+**Bundled 1.4 MB model artifacts over training at boot.** The classifier,
+resolution comparator and forecaster are trained from the deterministic corpus
+and committed under `backend/app/data/models`, so the API and worker install
+identical models and first boot is fast and memory-light. The trade-off is that
+the artifacts must be regenerated when the corpus changes; `train_models.py`
+does this locally and `CIVICLENS_FORCE_BOOTSTRAP=1` retrains on a deploy. The
+335 MB CLIP vision model is still downloaded lazily on the worker the first time
+an after-photo is verified.
+
+**OpenStreetMap raster tiles over a keyed basemap.** CARTO's keyless endpoint
+began returning "API KEY REQUIRED" placeholder tiles, which broke the map layout.
+OSM tiles are free and stable, but have no dark style, so dark mode applies a CSS
+filter. A production deployment should use a keyed vector tile provider and
+attribution budget.
+
+**Static SPA on Vercel, not SSR.** The staff console is authenticated and
+does not need SEO; a static bundle with code-split staff routes is cheap, fast
+and cacheable. The public portal is the only SEO-relevant page, and it is small
+enough to stay in the initial bundle. The trade-off is a blank shell until the
+bundle loads on slow connections; the skeletons cover that gap.
+
+---
+
 ## Development
 
 ```bash
@@ -497,7 +798,10 @@ npm run dev                         # dev server on :5173 with /api proxy
   and after), Redis DB 15, an isolated embedded Qdrant path and a `tiny` Whisper
   model; model artifacts are trained into `var/test_models` on first run.
 - **Smoke test** requires all processes up (Mongo, Redis, API, worker) and
-  exercises the *real* broker/worker path — no eager mode.
+  exercises the *real* broker/worker path — no eager mode. Set
+  `SMOKE_BASE_URL` when the API is not on the default port.
+- **CI** runs the same lint, test and build commands on every push and pull
+  request; the deploy job is skipped unless the repository secrets are present.
 
 ### Configuration
 
@@ -510,27 +814,35 @@ weights, clustering, forecasting, assistant) are documented inline there.
 
 ```text
 civiclens/
-├── docker-compose.yml          # api + worker + beat + mongo + redis + qdrant
-├── .env.example
+├── render.yaml                 # Render Blueprint: api + worker + redis
+├── docker-compose.yml          # local api + worker + beat + mongo + redis + qdrant
+├── .github/workflows/ci.yml    # lint, test, build, guarded deploy
+├── docs/
+│   ├── DEPLOY.md               # Render + Vercel runbook
+│   ├── demo.gif                # 28-second walkthrough
+│   └── screenshots/            # real captures, dark + light
 ├── backend/
-    ├── Dockerfile
-    ├── pyproject.toml          # deps, pytest, ruff
-    ├── app/
-    │   ├── main.py             # app factory, OpenAPI metadata, middleware
-    │   ├── core/               # config, logging, security, errors, rate limit, deps
-    │   ├── db/                 # async (Motor) + sync (pymongo) clients, indexes
-    │   ├── models/             # Pydantic schemas (ward, complaint, voice, …)
-    │   ├── ai/                 # embeddings, vector store, language, translation,
-    │   │                       # classifier, clustering, priority, resolution,
-    │   │                       # forecast, assistant
-    │   ├── api/v1/             # auth, users, health, jobs, complaints, wards,
-    │   │                       # clusters, forecasts, assistant, voice, media
-    │   ├── services/           # business logic (complaints, wards, audit, …)
-    │   ├── workers/            # Celery app, beat schedule + task modules
-    │   └── data/corpus.py      # deterministic labelled benchmark corpus
-    ├── scripts/                # seed_dataset, train_models, evaluate, smoke, warmup
-    └── tests/                  # unit + integration tests
+│   ├── Dockerfile
+│   ├── pyproject.toml          # deps, pytest, ruff
+│   ├── app/
+│   │   ├── main.py             # app factory, OpenAPI metadata, middleware
+│   │   ├── core/               # config, logging, security, errors, rate limit, deps
+│   │   ├── db/                 # async (Motor) + sync (pymongo) clients, indexes
+│   │   ├── models/             # Pydantic schemas (ward, complaint, voice, …)
+│   │   ├── ai/                 # embeddings, vector store, language, translation,
+│   │   │                       # classifier, clustering, priority, resolution,
+│   │   │                       # forecast, assistant
+│   │   ├── api/v1/             # auth, users, health, jobs, complaints, wards,
+│   │   │                       # clusters, forecasts, assistant, voice, media
+│   │   ├── services/           # business logic (complaints, wards, audit, …)
+│   │   ├── workers/            # Celery app, beat schedule + task modules
+│   │   └── data/
+│   │       ├── corpus.py       # deterministic labelled benchmark corpus
+│   │       └── models/         # bundled classifier, comparator, forecaster
+│   ├── scripts/                # seed, train, evaluate, smoke, bootstrap_deploy
+│   └── tests/                  # unit + integration tests
 └── web/                        # React 19 staff console + public portal
+    ├── vercel.json             # SPA rewrites + asset caching
     ├── src/lib/                # typed API client, auth/theme providers, helpers
     ├── src/components/         # shell, tables, charts, map, evidence, dialogs
     ├── src/pages/              # overview, queue, detail, map, recurring, assistant, public
@@ -557,7 +869,16 @@ civiclens/
   city map with ward boundaries, heat and forecast overlays, recurring-cluster
   workspace with trends, grounded assistant UI, and an unauthenticated aggregate
   transparency portal. React + TypeScript + Vite with a CSS-variable dark theme.
-- [ ] **Phase 4:** Flutter client + deployment polish.
+- [x] **Phase 4 — City-scale corpus:** 25 real wards with boundary polygons and
+  per-ward volume/severity/speed profiles, 3,458 complaints over 180 days,
+  realistic addresses and coordinates, labelled duplicates and resolution pairs,
+  demo accounts surfaced on the sign-in page.
+- [x] **Phase 5 — Deployment and demo:** Render Blueprint (API + worker + Redis),
+  Vercel configuration, idempotent first-boot bootstrap, GitHub Actions CI/CD,
+  real screenshots, demo GIF, deployment runbook and this README.
+- [ ] **Next:** Flutter citizen app, keyed vector basemap, object-store media for
+  multi-region deployments, field-labelled resolution dataset and a transformer
+  category classifier.
 
 ## License
 
