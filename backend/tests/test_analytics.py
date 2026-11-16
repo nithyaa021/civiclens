@@ -8,6 +8,7 @@ import pytest
 from bson import ObjectId
 from httpx import AsyncClient
 
+from app.data.corpus import generate_wards
 from tests.helpers import WARD1_LAT, WARD1_LNG, WARD2_LAT, WARD2_LNG, complaint_payload
 
 
@@ -64,7 +65,7 @@ async def test_public_stats_are_anonymous_and_include_resolutions(
     resp = await client.get("/api/v1/public/stats")
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["wards"] and len(body["wards"]) == 15
+    assert body["wards"] and len(body["wards"]) == len(generate_wards())
     assert body["totals"]["total"] >= 1
     assert body["recent_resolutions"]
     assert any(
