@@ -1,0 +1,98 @@
+# Render Blueprint for the CivicLens API + Celery worker.
+#
+# Render does not host MongoDB or Qdrant, so those come from external managed
+# services (MongoDB Atlas free tier + Qdrant Cloud free tier).  Set their
+# connection strings as `sync: false` secrets in the Render dashboard:
+#
+#   MONGO_URI          mongodb+srv://...        (Atlas)
+#   QDRANT_URL         https://...qdrant.io:6333 (Qdrant Cloud)
+#   QDRANT_API_KEY     <qdrant cloud api key>
+#   JWT_SECRET         <python -c "import secrets;print(secrets.token_urlsafe(48))">
+#   CORS_ORIGINS       ["https://<your-vercel-app>.vercel.app"]
+#
+# `render.yaml` is infra-as-code: Render reads it when you create a Blueprint
+# from this repository, then keeps the services in sync on every push to main.
+
+services:
+  - type: web
+    name: civiclens-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    # Seed the demo corpus + install bundled model artifacts on first boot
+    # (idempotent), then serve.
+    dockerCommand: sh -c "python scripts/bootstrap_deploy.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers"
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: MONGO_DB
+        value: civiclens
+      - key: WHISPER_MODEL
+        value: tiny
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      # Secrets: fill these in the Render dashboard (never commit them).
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: civiclens-redis
+          property: connectionString
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+  - type: worker
+    name: civiclens-worker
+    runtime: docker
+    # Render's free compute plans are web-only, so the worker needs the cheapest
+    # paid instance (0.5 CPU / 512 MB, $7/month).
+    plan: 0.5c-512mb
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # Each Render service has its own filesystem, so the worker installs its own
+    # copy of the bundled model artifacts.  The bootstrap lock makes the
+    # concurrent seed a no-op, so only the API actually seeds the corpus.
+    # One Celery process keeps the lazy-loaded CLIP vision model within 512 MB.
+    dockerCommand: sh -c "python scripts/bootstrap_deploy.py && celery -A app.workers.celery_app worker --loglevel=info --concurrency=1"
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: MONGO_DB
+        value: civiclens
+      - key: WHISPER_MODEL
+        value: tiny
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: civiclens-redis
+          property: connectionString
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+
+  - type: redis
+    name: civiclens-redis
+    plan: free
+    region: singapore
+    maxmemoryPolicy: noeviction  # Celery broker/result backend must not evict
+    ipAllowList: []  # only reachable from other Render services
