@@ -50,6 +50,9 @@ build-backend = "setuptools.build_meta"
 include = ["app*"]
 
 [tool.pytest.ini_options]
+# Make `pytest` and `python -m pytest` equivalent: the working tree (backend/)
+# must win over any installed copy of the `app` package.
+pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"

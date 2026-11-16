@@ -30,9 +30,12 @@ os.environ.setdefault("CELERY_TASK_ALWAYS_EAGER", "true")
 os.environ.setdefault("JWT_SECRET", "unit-test-secret-not-for-production-0123456789")
 
 # Phase-2 isolation: test-only model artifacts and Qdrant store, so tests never
-# read or lock the developer's populated index.
+# read or lock the developer's populated index.  QDRANT_URL is overridden (not
+# just defaulted): a developer .env often points at a running Qdrant server, and
+# tests must never write to the demo collection.
 TEST_QDRANT_PATH = Path(f"var/qdrant_test_{uuid.uuid4().hex[:8]}")
-os.environ.setdefault("QDRANT_PATH", str(TEST_QDRANT_PATH))
+os.environ["QDRANT_URL"] = ""
+os.environ["QDRANT_PATH"] = str(TEST_QDRANT_PATH)
 os.environ.setdefault("MODELS_DIR", "var/test_models")
 os.environ.setdefault("RESOLUTION_MODEL_PATH", "var/test_models/resolution_comparator.joblib")
 os.environ.setdefault("FORECAST_MODEL_PATH", "var/test_models/forecast_xgb.joblib")
