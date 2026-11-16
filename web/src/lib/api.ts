@@ -22,7 +22,15 @@ import type {
 } from "./types";
 
 const TOKEN_KEY = "civiclens.tokens";
-const API_ROOT = "/api/v1";
+
+// In development the Vite proxy forwards `/api` to the local API, so an empty
+// base keeps requests same-origin.  In production (Vercel → Render) set
+// `VITE_API_BASE_URL` to the deployed API origin, e.g. https://civiclens-api.onrender.com
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const API_ROOT = `${API_BASE}/api/v1`;
+
+/** Swagger UI for the deployed API (same origin in local dev). */
+export const apiDocsUrl = `${API_BASE}/docs`;
 
 export class ApiError extends Error {
   readonly status: number;

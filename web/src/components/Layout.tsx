@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { clsx } from "clsx";
 import {
+  BookOpenText,
   ChevronRight,
   ClipboardList,
   ExternalLink,
@@ -13,6 +14,7 @@ import {
   Sun,
   UserRound,
 } from "lucide-react";
+import { apiDocsUrl } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/themeContext";
 import { Wordmark } from "./Wordmark";
@@ -103,6 +105,16 @@ export function AppShell() {
           >
             <ExternalLink className="h-[18px] w-[18px] shrink-0" aria-hidden />
             <span className="hidden truncate lg:block">Public portal</span>
+          </a>
+          <a
+            href={apiDocsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium text-[color:var(--sidebar-muted)] transition-colors hover:bg-white/5 hover:text-[color:var(--sidebar-ink)]"
+            title="API reference (OpenAPI)"
+          >
+            <BookOpenText className="h-[18px] w-[18px] shrink-0" aria-hidden />
+            <span className="hidden truncate lg:block">API reference</span>
           </a>
         </nav>
 

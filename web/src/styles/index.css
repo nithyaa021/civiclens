@@ -9,7 +9,7 @@
   --raised: #f9fbfb;
   --ink: #182226;
   --muted: #5b6b72;
-  --faint: #87949a;
+  --faint: #647379;
   --line: #e2e7e8;
   --line-strong: #cbd5d7;
   --primary: #1b526d;
@@ -43,7 +43,7 @@
   --raised: #172227;
   --ink: #e2e9ea;
   --muted: #a0aeb3;
-  --faint: #74848a;
+  --faint: #8a9a9f;
   --line: #253237;
   --line-strong: #35454a;
   --primary: #78b4cb;
@@ -244,6 +244,12 @@ a {
   background: var(--raised);
   font-family: inherit;
   z-index: 0;
+}
+
+/* OSM raster tiles are light-only; in dark mode we invert + desaturate them so
+   the basemap matches the console without depending on a keyed tile provider. */
+.map-tiles-dark {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.95) saturate(0.55);
 }
 
 .leaflet-control-attribution {

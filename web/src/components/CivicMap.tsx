@@ -10,8 +10,13 @@ import type { ForecastMap, MapComplaint, Ward } from "../lib/types";
 
 const CENTER: [number, number] = [12.9716, 77.5946];
 
-const LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
-const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+// OpenStreetMap's public raster tiles need no API key.  CARTO's keyless
+// basemaps started returning "API KEY REQUIRED" tiles, which broke the map, so
+// the dark theme is produced with a CSS filter over the same OSM tiles (see
+// `.map-tiles-dark` in styles/index.css) instead of a paid tile provider.
+const TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => {
@@ -178,9 +183,9 @@ export function CivicMap({
       aria-label="Complaint map of Bengaluru"
     >
       <TileLayer
-        url={theme === "dark" ? DARK_TILES : LIGHT_TILES}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        subdomains="abcd"
+        className={theme === "dark" ? "map-tiles map-tiles-dark" : "map-tiles"}
+        url={TILES}
+        attribution={ATTRIBUTION}
         maxZoom={19}
       />
 

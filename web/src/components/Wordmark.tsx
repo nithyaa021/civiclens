@@ -6,7 +6,6 @@ export function Wordmark({ compact = false, inverse = false }: { compact?: boole
     <Link
       to="/"
       className={clsx("inline-flex items-center gap-2.5 rounded", inverse && "text-[color:var(--sidebar-ink)]")}
-      aria-label="CivicLens home"
     >
       <span
         className={clsx(
