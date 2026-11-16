@@ -7,11 +7,13 @@ plainly that every reported metric is measured on this corpus - never invented.
 
 The corpus is designed to exercise the real pipeline:
 
-* 15 Bengaluru-like wards laid out on a grid, each with schools/hospitals.
+* 25 real Bengaluru wards across eight BBMP zones, each with schools/hospitals
+  and a "personality" (volume, severity and resolution-speed profile) so the
+  dashboards show realistic ward-to-ward patterns.
 * 10 complaint categories with parallel English / Hindi / Kannada phrasings
   (the Hindi and Kannada templates are translations of the corresponding
   English ones, which gives multilingual duplicate pairs real ground truth).
-* 120 days of daily complaint history with weekly seasonality and a monsoon
+* 180 days of daily complaint history with weekly seasonality and a monsoon
   burst, used for hotspot forecasting.
 * Explicit cross-language duplicate groups so duplicate-detection precision can
   be measured.
@@ -33,7 +35,8 @@ from app.models.complaint import ComplaintCategory, ComplaintStatus
 from app.models.ward import GeoPoint
 
 # --- Geography ----------------------------------------------------------------
-# Bengaluru-ish grid: 5 columns x 3 rows of ~3.5 km cells.
+# 25 real Bengaluru wards spread across the eight BBMP zones.  Coordinates are
+# the ward centroids; each ward gets a square polygon of ~3.5 km per side.
 _GRID = [
     # (ward_no, name, zone, lng, lat)
     (1, "Jayanagar", "South Zone", 77.500, 12.905),
@@ -51,10 +54,91 @@ _GRID = [
     (13, "Whitefield", "East Zone", 77.572, 12.985),
     (14, "Hebbal", "North Zone", 77.608, 12.985),
     (15, "Yelahanka", "North Zone", 77.644, 12.985),
+    (16, "Marathahalli", "South-East Zone", 77.680, 12.905),
+    (17, "Bellandur", "South-East Zone", 77.680, 12.945),
+    (18, "Sarjapur Road", "South-East Zone", 77.680, 12.985),
+    (19, "Electronic City", "South Zone", 77.660, 12.845),
+    (20, "Bommanahalli", "South Zone", 77.590, 12.845),
+    (21, "Rajajeshwari Nagar", "South Zone", 77.460, 12.845),
+    (22, "Dasarahalli", "North Zone", 77.500, 13.045),
+    (23, "Jalahalli", "North Zone", 77.536, 13.045),
+    (24, "Kengeri", "West Zone", 77.460, 12.905),
+    (25, "Mahadevapura", "East Zone", 77.644, 12.985),
 ]
 
 _CELL_HALF_LNG = 0.016  # ~1.8 km half-width
 _CELL_HALF_LAT = 0.018  # ~2.0 km half-height
+
+# Plausible street names per zone flavour; the seed picks from the ward's zone
+# so Jayanagar reports "9th Cross, 4th Block" while Whitefield reports named
+# tech-corridor roads.  This is what keeps the addresses from looking uniform.
+_STREETS_BY_ZONE: dict[str, list[str]] = {
+    "South Zone": [
+        "10th Main Road", "4th Cross Road", "Gandhi Bazaar Road", "Kanakapura Main Road",
+        "Jayanagar 11th Block Road", "Banashankari Temple Street", "100 Feet Road",
+    ],
+    "South-East Zone": [
+        "27th Main Road", "HSR Sector 2 Road", "100 Feet Road", "Sarjapur Outer Ring Road",
+        "Koramangala 5th Block Road", "BTM 16th Main Road", "Marathahalli Bridge Road",
+    ],
+    "East Zone": [
+        "100 Feet Road", "CMS Road", "Old Airport Road", "Varthur Main Road",
+        "Whitefield Main Road", "ITPL Main Road", "Kundalahalli Gate Road",
+    ],
+    "Central Zone": [
+        "Commercial Street", "Shivajinagar Main Road", "Cubbon Road", "Russell Market Road",
+    ],
+    "West Zone": [
+        "Dr Rajkumar Road", "1st Main Road", "Mahalakshmi Layout Road",
+        "Mysore Road", "Rajajinagar Entrance Road",
+    ],
+    "North Zone": [
+        "Banaswadi Main Road", "Hennur Main Road", "Bellary Road",
+        "Yelahanka New Town Road", "Jalahalli Cross Road",
+    ],
+}
+
+_LANDMARKS = [
+    "Near bus stop", "Opposite the market", "Behind the temple", "Next to the school",
+    "Near the hospital gate", "Beside the park", "At the junction", "Near the metro station",
+    "Opposite the apartment complex", "Beside the lake",
+]
+
+# --- Ward "personalities" -----------------------------------------------------
+# Real cities are not uniform: dense commercial wards generate more complaints,
+# poorer wards drain slower.  These multipliers give the charts visible
+# structure (that is the point of the demo) while staying deterministic.
+#
+#   volume   – multiplier on complaint rate (density of population/commerce)
+#   severity – additive shift on severity sampling (infrastructure condition)
+#   speed    – multiplier on resolution time (crew capacity); >1 = slower
+_WARD_PROFILE: dict[int, dict[str, float]] = {
+    1:  {"volume": 1.15, "severity": 0.0, "speed": 0.85},   # Jayanagar: organised
+    2:  {"volume": 1.00, "severity": 0.1, "speed": 0.95},   # Basavanagudi
+    3:  {"volume": 1.20, "severity": 0.2, "speed": 1.25},   # Banashankari: sprawling
+    4:  {"volume": 1.05, "severity": 0.0, "speed": 0.90},   # JP Nagar
+    5:  {"volume": 1.30, "severity": 0.1, "speed": 1.10},   # BTM: dense rentals
+    6:  {"volume": 1.45, "severity": 0.3, "speed": 1.35},   # Koramangala: nightlife+floods
+    7:  {"volume": 1.25, "severity": 0.1, "speed": 0.95},   # HSR: civic-minded
+    8:  {"volume": 1.10, "severity": 0.0, "speed": 0.80},   # Indiranagar: well-served
+    9:  {"volume": 1.55, "severity": 0.4, "speed": 1.55},   # Shivajinagar: dense, slow
+    10: {"volume": 0.95, "severity": 0.0, "speed": 0.85},   # Malleshwaram
+    11: {"volume": 1.15, "severity": 0.2, "speed": 1.20},   # Rajajinagar
+    12: {"volume": 1.00, "severity": 0.1, "speed": 1.00},   # Vijayanagar
+    13: {"volume": 1.50, "severity": 0.3, "speed": 1.30},   # Whitefield: construction
+    14: {"volume": 1.20, "severity": 0.2, "speed": 1.15},   # Hebbal: lake overflow
+    15: {"volume": 0.85, "severity": 0.0, "speed": 1.05},   # Yelahanka: peripheral
+    16: {"volume": 1.40, "severity": 0.3, "speed": 1.30},   # Marathahalli: tech sprawl
+    17: {"volume": 1.25, "severity": 0.2, "speed": 1.10},   # Bellandur: lake fumes
+    18: {"volume": 1.35, "severity": 0.2, "speed": 1.25},   # Sarjapur Road: rapid growth
+    19: {"volume": 1.30, "severity": 0.2, "speed": 1.00},   # Electronic City
+    20: {"volume": 1.20, "severity": 0.2, "speed": 1.20},   # Bommanahalli
+    21: {"volume": 1.00, "severity": 0.1, "speed": 1.05},   # Rajajeshwari Nagar
+    22: {"volume": 1.10, "severity": 0.3, "speed": 1.40},   # Dasarahalli: underserved
+    23: {"volume": 0.90, "severity": 0.1, "speed": 1.10},   # Jalahalli
+    24: {"volume": 0.95, "severity": 0.1, "speed": 1.15},   # Kengeri
+    25: {"volume": 1.30, "severity": 0.3, "speed": 1.25},   # Mahadevapura: IT flood zone
+}
 
 _SENSITIVE_NAMES = {
     "school": [
@@ -846,7 +930,7 @@ def _ward_geometry(lng: float, lat: float) -> dict:
 
 
 def generate_wards() -> list[WardSeed]:
-    """15 deterministic wards with schools/hospitals inside their polygons."""
+    """25 deterministic Bengaluru wards with schools/hospitals in their polygons."""
     wards: list[WardSeed] = []
     for index, (ward_no, name, zone, lng, lat) in enumerate(_GRID):
         sensitive: list[dict] = []
@@ -877,6 +961,11 @@ def generate_wards() -> list[WardSeed]:
 def ward_centers() -> dict[int, tuple[float, float]]:
     """Mapping of ward number to (lng, lat) seed centre."""
     return {ward_no: (lng, lat) for ward_no, _, _, lng, lat in _GRID}
+
+
+def ward_profiles() -> dict[int, dict[str, float]]:
+    """Per-ward volume/severity/speed multipliers used by the demo corpus."""
+    return {ward_no: dict(profile) for ward_no, profile in _WARD_PROFILE.items()}
 
 
 # --- Text corpus --------------------------------------------------------------
@@ -942,55 +1031,52 @@ def _seasonal(
     return weekday * month * burst * rng.uniform(0.7, 1.3)
 
 
-def _address(rng: random.Random, ward_name: str) -> tuple[str, str]:
-    cross = rng.randint(1, 18)
-    main = rng.choice(["Main Road", "Cross Road", "Market Road", "Park Road", "Ring Road"])
-    landmark = rng.choice(
-        [
-            "Near bus stop",
-            "Opposite the market",
-            "Behind the temple",
-            "Next to the school",
-            "Near the hospital gate",
-            "Beside the park",
-        ]
-    )
-    return f"{cross}th {main}, {ward_name}, Bengaluru", landmark
+def _address(rng: random.Random, ward_name: str, zone: str) -> tuple[str, str]:
+    streets = _STREETS_BY_ZONE.get(zone) or _STREETS_BY_ZONE["South Zone"]
+    number = rng.randint(1, 18)
+    street = rng.choice(streets)
+    landmark = rng.choice(_LANDMARKS)
+    return f"{number} {street}, {ward_name}, Bengaluru", landmark
 
 
 def generate_complaints(
     *,
-    days: int = 120,
+    days: int = 180,
     end_date: date | None = None,
     seed: int = 7,
     duplicate_groups_per_series: int = 2,
 ) -> list[ComplaintSeed]:
-    """Generate a deterministic 120-day complaint history.
+    """Generate a deterministic multi-month complaint history.
 
     Counts follow a per-series Poisson-ish process with weekly seasonality and
-    a monsoon burst.  Each series also gets a couple of explicit cross-language
-    duplicate groups (English + Hindi + Kannada report of the same issue), which
-    are the ground truth for duplicate-detection evaluation.
+    a monsoon burst, scaled by a per-ward "personality" (volume/severity/speed)
+    so the dashboards show real structure instead of uniform noise.  Each
+    series also gets a couple of explicit cross-language duplicate groups
+    (English + Hindi + Kannada report of the same issue), which are the ground
+    truth for duplicate-detection evaluation.
     """
     rng = random.Random(seed)
     end = end_date or date(2026, 10, 31)
     start = end - timedelta(days=days - 1)
     burst_start = start + timedelta(days=35)
-    burst_end = start + timedelta(days=60)
+    burst_end = start + timedelta(days=int(days * 0.55))
     centers = ward_centers()
     complaints: list[ComplaintSeed] = []
     counter = 0
 
-    for ward_no, ward_name, *_ in _GRID:
+    for ward_no, ward_name, zone, *_ in _GRID:
+        profile = _WARD_PROFILE[ward_no]
         center_lng, center_lat = centers[ward_no]
         for category_index, category in enumerate(ComplaintCategory):
             weight = CATEGORY_BASE_WEIGHT[category]
-            ward_factor = 0.7 + 0.6 * ((ward_no * 37 + category_index * 11) % 100) / 100
+            # Deterministic per-series variance (volume is dominated by the
+            # ward profile, with a small stable per-series wobble).
+            series_wobble = 0.85 + ((ward_no * 37 + category_index * 11) % 100) / 100 * 0.3
             # Use a stable per-series stream so adding a series never shifts another
             # (and so the corpus is identical across processes: `hash()` is salted).
             series_key = hashlib.sha256(f"{seed}:{ward_no}:{category.value}".encode()).hexdigest()
             series_rng = random.Random(int(series_key[:16], 16))
-            base = 0.10 * weight * ward_factor
+            base = 0.055 * weight * profile["volume"] * series_wobble
 
             daily: list[tuple[date, int]] = []
             for offset in range(days):
@@ -1015,13 +1101,13 @@ def generate_complaints(
                 for _ in range(count):
                     template_index = series_rng.randrange(len(TEMPLATES[category]["en"]))
                     language = series_rng.choices(
-                        ["en", "hi", "kn"], weights=[0.78, 0.13, 0.09]
+                        ["en", "hi", "kn"], weights=[0.76, 0.14, 0.10]
                     )[0]
                     items = TEMPLATES[category][language]
                     title, description = items[template_index % len(items)]
                     lng = center_lng + series_rng.uniform(-0.010, 0.010)
                     lat = center_lat + series_rng.uniform(-0.011, 0.011)
-                    address, landmark = _address(series_rng, ward_name)
+                    address, landmark = _address(series_rng, ward_name, zone)
                     created = datetime.combine(
                         day,
                         time(
@@ -1030,6 +1116,17 @@ def generate_complaints(
                         ),
                         tzinfo=UTC,
                     )
+                    # Ward-condition severity shift, clamped to 1..5.
+                    severity_pool = SEVERITY_BY_CATEGORY[category]
+                    if profile["severity"]:
+                        shift_odds = abs(profile["severity"]) * 0.7
+                        shift = 1 if series_rng.random() < shift_odds else 0
+                        if profile["severity"] > 0:
+                            severity = min(5, series_rng.choice(severity_pool) + shift)
+                        else:
+                            severity = max(1, series_rng.choice(severity_pool) - shift)
+                    else:
+                        severity = series_rng.choice(severity_pool)
                     counter += 1
                     series_complaints.append(
                         ComplaintSeed(
@@ -1037,14 +1134,14 @@ def generate_complaints(
                             title=title,
                             description=description,
                             category=category,
-                            severity=series_rng.choice(SEVERITY_BY_CATEGORY[category]),
+                            severity=severity,
                             location=GeoPoint(coordinates=(round(lng, 6), round(lat, 6))),
                             address=address,
                             landmark=landmark,
                             ward=ward_no,
                             created_at=created,
                             status=ComplaintStatus.SUBMITTED,
-                            votes=series_rng.randint(0, 8),
+                            votes=max(0, int(series_rng.randint(0, 10) * profile["volume"])),
                             language=language,
                             template_index=template_index,
                         )
@@ -1108,7 +1205,6 @@ def generate_complaints(
             complaints.extend(
                 item for item in series_complaints if item.seed_id not in duplicate_base_ids
             )
-
     # Statuses: older complaints are mostly closed/resolved; recent ones are open.
     final: list[ComplaintSeed] = []
     for item in complaints:

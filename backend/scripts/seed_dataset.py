@@ -2,13 +2,15 @@
 
     python scripts/seed_dataset.py            # seed (keeps existing data)
     python scripts/seed_dataset.py --reset    # wipe domain collections first
+    python scripts/seed_dataset.py --days 180 # longer history window
 
 What is created:
 
-* 15 wards with polygons and sensitive sites;
+* 25 real Bengaluru wards with polygons and sensitive sites;
 * an admin, one ward officer per ward and five citizens;
-* ~1,700 complaints over 120 days, with multilingual duplicates, stored
-  embeddings, initial priority scores and SLA clocks;
+* ~3,300 complaints over 180 days with ward-level variation (dense wards
+  file more, underserved wards resolve slower), multilingual duplicates,
+  stored embeddings, initial priority scores and SLA clocks;
 * Qdrant points with category/ward/status/geo payloads for similarity search;
 * creation audit entries.
 
@@ -31,7 +33,12 @@ from app.ai.priority import compute_priority  # noqa: E402
 from app.ai.vector_store import clear_collection, ensure_collection, upsert_complaint  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
-from app.data.corpus import ComplaintSeed, generate_complaints, generate_wards  # noqa: E402
+from app.data.corpus import (  # noqa: E402
+    ComplaintSeed,
+    generate_complaints,
+    generate_wards,
+    ward_profiles,
+)
 from app.db.sync_mongo import get_sync_database  # noqa: E402
 from app.models.complaint import ComplaintStatus, EnrichmentStatus, SlaState  # noqa: E402
 from app.services.wards import nearest_sensitive_km  # noqa: E402
@@ -133,6 +140,7 @@ def build_document(
     officer_id: str,
     embedding: list[float],
     now: datetime,
+    ward_profile: dict | None = None,
 ) -> dict:
     ward_doc = ward_docs[seed.ward]
     target_hours = settings.sla_targets_hours.get(
@@ -149,8 +157,13 @@ def build_document(
     if seed.status in (ComplaintStatus.RESOLVED, ComplaintStatus.CLOSED):
         # Deterministic, category-aware completion time so the dashboard has
         # realistic resolution durations instead of every job finishing in 0 s.
+        # The ward's "speed" profile stretches or shortens the clock: wards
+        # with weak crew capacity take visibly longer, which is the pattern
+        # the ward-performance charts are supposed to reveal.
         digest = hashlib.sha256(f"{seed.seed_id}:resolution".encode()).digest()
         factor = 0.35 + int.from_bytes(digest[:2], "big") / 65535 * 2.2
+        speed = ward_profile["speed"]
+        factor *= speed
         age_hours = max(1.0, (now - seed.created_at).total_seconds() / 3600)
         hours = min(target_hours * factor, age_hours * 0.82)
         resolved_at = seed.created_at + timedelta(hours=hours)
@@ -219,7 +232,7 @@ def build_document(
         "created_at": seed.created_at,
         "updated_at": closed_at or resolved_at or seed.created_at,
         "benchmark": {
-            "corpus": "seed-v1",
+            "corpus": "seed-v2",
             "seed_id": seed.seed_id,
             "duplicate_group": seed.duplicate_group,
         },
@@ -229,7 +242,7 @@ def build_document(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reset", action="store_true", help="Drop domain collections first.")
-    parser.add_argument("--days", type=int, default=120, help="History length in days.")
+    parser.add_argument("--days", type=int, default=180, help="History length in days.")
     parser.add_argument(
         "--skip-embeddings",
         action="store_true",
@@ -272,6 +285,8 @@ def main() -> int:
     seeds = generate_complaints(days=args.days, end_date=datetime.now(UTC).date())
     print(f"Generated {len(seeds)} complaints via app.data.corpus")
 
+    profiles = ward_profiles()
+
     # Embed every unique (English where available) text once, then reuse by text.
     unique_texts = list(dict.fromkeys(embedding_text_for(seed) for seed in seeds))
     if args.skip_embeddings:
@@ -299,6 +314,7 @@ def main() -> int:
             officer_id=str(officer["_id"]) if officer else None,
             embedding=embeddings.get(embedding_text_for(seed), []),
             now=now,
+            ward_profile=profiles.get(seed.ward),
         )
         documents.append(document)
 

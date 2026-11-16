@@ -476,7 +476,7 @@ def main() -> int:
     print("Evaluating on the seeded labeled corpus (real model outputs only)...\n", flush=True)
     results: dict[str, Any] = {
         "generated_at": datetime.now(UTC).isoformat(),
-        "corpus": "seed-v1",
+        "corpus": "seed-v2",
         "corpus_fingerprint": directory_fingerprint(),
         "classifier": evaluate_classifier(),
     }
