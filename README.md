@@ -1,5 +1,7 @@
 # CivicLens AI
 
+[![CI/CD](https://github.com/nithyaa021/civiclens/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/nithyaa021/civiclens/actions/workflows/ci.yml)
+
 **Civic complaints become a ranked, verifiable repair queue — multilingual
 intake, duplicate detection, SLA enforcement and photo-verified closure in one
 municipal platform.**
@@ -35,6 +37,7 @@ store. See [`docs/DEPLOY.md`](docs/DEPLOY.md) for the 15-minute walkthrough.
 
 | Surface | URL |
 |---|---|
+| Source (GitHub) | https://github.com/nithyaa021/civiclens |
 | Staff console (Vercel) | `https://<your-project>.vercel.app` |
 | Public transparency portal | `https://<your-project>.vercel.app/public` |
 | API reference (Swagger UI) | `https://<your-api-service>.onrender.com/docs` |
