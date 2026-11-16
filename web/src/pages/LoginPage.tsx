@@ -8,9 +8,24 @@ import { Wordmark } from "../components/Wordmark";
 import { Spinner } from "../components/States";
 
 const DEMO = [
-  { role: "Administrator", email: "admin@civiclens.dev", password: "Admin#12345" },
-  { role: "Ward officer", email: "officer12@civiclens.dev", password: "Officer#12345" },
-  { role: "Citizen", email: "citizen1@civiclens.dev", password: "Citizen#12345" },
+  {
+    role: "Administrator",
+    email: "admin@civiclens.dev",
+    password: "Admin#12345",
+    hint: "City-wide analytics & bulk actions",
+  },
+  {
+    role: "Ward officer",
+    email: "officer12@civiclens.dev",
+    password: "Officer#12345",
+    hint: "Ward 12 queue only",
+  },
+  {
+    role: "Citizen",
+    email: "citizen1@civiclens.dev",
+    password: "Citizen#12345",
+    hint: "Mobile-app notice + /public",
+  },
 ];
 
 export function LoginPage() {
@@ -184,7 +199,7 @@ export function LoginPage() {
           </p>
 
           <div className="mt-8 border-t border-line pt-4">
-            <p className="eyebrow mb-2">Development environment</p>
+            <p className="eyebrow mb-2">Demo accounts</p>
             <div className="space-y-1.5">
               {DEMO.map((account) => (
                 <div
@@ -194,8 +209,11 @@ export function LoginPage() {
                   <span className="w-[86px] shrink-0 text-[10px] font-medium uppercase tracking-[0.04em] text-faint">
                     {account.role}
                   </span>
-                  <span className="tabular min-w-0 flex-1 truncate text-[11px] text-muted">
-                    {account.email}
+                  <span className="min-w-0 flex-1">
+                    <span className="tabular block truncate text-[11px] text-ink">
+                      {account.email}
+                    </span>
+                    <span className="block truncate text-[10px] text-faint">{account.hint}</span>
                   </span>
                   <button
                     type="button"
@@ -212,8 +230,8 @@ export function LoginPage() {
               ))}
             </div>
             <p className="mt-2 text-[10px] leading-4 text-faint">
-              Seeded accounts for local evaluation only. Passwords are documented in the project
-              README.
+              Passwords: Admin#12345 · Officer#12345 · Citizen#12345. Seeded demo accounts for
+              evaluation; the citizen role has no console access by design.
             </p>
           </div>
         </div>
