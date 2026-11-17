@@ -134,7 +134,7 @@ The first deploy:
 1. builds the API/worker image;
 2. downloads the ONNX/Whisper/NLLB artifacts into a persistent cache volume;
 3. installs the bundled classifier/comparator/forecaster artifacts;
-4. seeds 3,458 complaints across 25 wards into MongoDB and Qdrant;
+4. seeds ~3,400-3,500 complaints across 25 wards into MongoDB and Qdrant;
 5. starts the API, worker, beat and Caddy;
 6. waits for `/health` and `/api/v1/health`.
 

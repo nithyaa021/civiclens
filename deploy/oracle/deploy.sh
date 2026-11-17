@@ -41,7 +41,7 @@ COMPOSE=(docker compose --env-file .env -f docker-compose.prod.yml)
 echo "==> Building API/worker image"
 "${COMPOSE[@]}" build
 
-echo "==> Starting stack (first boot seeds the 3,458-complaint corpus)"
+echo "==> Starting stack (first boot seeds the ~3,400-3,500 complaint corpus)"
 "${COMPOSE[@]}" up -d --remove-orphans
 
 echo "==> Waiting for the API to become healthy (first boot downloads ~1.5 GB of models)"

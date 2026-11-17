@@ -1,10 +1,16 @@
 # CivicLens API image - shared by the `api` and `worker` compose services.
 FROM python:3.13-slim
 
+# fastembed defaults to tempfile.gettempdir()/fastembed_cache, which is not
+# persisted.  Pin every model cache inside HOME so the model_cache volume keeps
+# the ONNX/CLIP/Whisper/NLLB artifacts across container restarts.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    FASTEMBED_CACHE_PATH=/home/civiclens/.cache/fastembed \
+    HF_HOME=/home/civiclens/.cache/huggingface \
+    HOME=/home/civiclens
 
 # curl is used by the container healthcheck.  libgomp1 is required by the
 # scikit-learn/xgboost ARM64 wheels on Debian slim.

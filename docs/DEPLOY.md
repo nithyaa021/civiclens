@@ -24,8 +24,9 @@ needed.
 > for a public repository are also free.
 
 Estimated time: 20-30 minutes, plus 5-15 minutes for the first boot (model
-downloads and the 3,458-complaint seed). The full VM-level walkthrough, including
-troubleshooting, is in [`deploy/oracle/README.md`](../deploy/oracle/README.md).
+downloads and the ~3,400-3,500 complaint seed). The full VM-level walkthrough,
+including troubleshooting, is in
+[`deploy/oracle/README.md`](../deploy/oracle/README.md).
 
 ---
 
@@ -135,7 +136,7 @@ The first deploy:
 1. builds the shared API/worker image;
 2. downloads the ONNX/Whisper/NLLB artifacts into a persistent cache volume;
 3. installs the bundled classifier, comparator and forecaster artifacts;
-4. seeds 3,458 complaints across 25 wards into MongoDB and Qdrant;
+4. seeds ~3,400-3,500 complaints across 25 wards into MongoDB and Qdrant;
 5. starts the API, worker, beat and Caddy;
 6. waits for `/health` and `/api/v1/health`.
 
