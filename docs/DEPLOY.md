@@ -283,12 +283,24 @@ From a terminal:
 ```bash
 curl -fsS https://api.<ip>.sslip.io/health
 curl -fsS https://api.<ip>.sslip.io/api/v1/health
-SMOKE_BASE_URL=https://api.<ip>.sslip.io python backend/scripts/smoke.py
+curl -fsS https://api.<ip>.sslip.io/api/v1/public/stats
 ```
 
-The smoke script creates a complaint, drives it through assignment and
-resolution, confirms it and checks the Whisper path. It leaves two extra
-complaints behind; do not run it against a database you care about.
+`backend/scripts/smoke.py` is a deeper end-to-end check, but it bootstraps an
+admin through the service layer, so it needs direct MongoDB access. Run it **on
+the VM**, where Mongo is reachable and the API is published on loopback:
+
+```bash
+cd /opt/civiclens/deploy/oracle
+docker compose --env-file .env -f docker-compose.prod.yml exec -T \
+  -e SMOKE_BASE_URL=http://127.0.0.1:8000 api \
+  python scripts/smoke.py
+```
+
+It creates a complaint, drives it through assignment and resolution, confirms it
+and checks the Whisper path. It leaves extra complaints and users behind; do not
+run it against a database you care about, or reseed afterwards with
+`docker compose ... run --rm -e CIVICLENS_FORCE_BOOTSTRAP=1 bootstrap`.
 
 ---
 

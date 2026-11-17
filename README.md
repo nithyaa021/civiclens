@@ -45,6 +45,10 @@ runbook.
 | API reference (Swagger UI) | `https://api.<public-ip>.sslip.io/docs` |
 | OpenAPI schema | `https://api.<public-ip>.sslip.io/openapi.json` |
 
+The two placeholder rows are filled in by `docs/DEPLOY.md` section 1 (the VM's
+reserved IPv4) and section 4 (the Vercel production domain). Nothing else in this
+README changes when the demo goes live.
+
 The sign-in page lists these seeded development accounts. They are created by
 `backend/scripts/seed_dataset.py` and exist in any seeded environment.
 
