@@ -27,9 +27,23 @@ detects duplicates, and issues are clustered by location and prioritised for
 ward officers.
 
 ### Getting started
+The browser console has no login form. It opens straight into a seeded demo
+perspective and lets visitors switch between city-wide, ward and citizen views,
+so every endpoint can be explored without credentials.
+
+1. `GET /api/v1/auth/demo` - list the perspectives the console can open.
+2. `POST /api/v1/auth/demo-session` - exchange a perspective id for a token pair.
+3. Click **Authorize** and paste the `access_token` to call protected endpoints.
+
+Demo sessions are ordinary short-lived tokens for seeded synthetic accounts
+(`@civiclens.dev`), so role permissions, ward scoping and the audit trail are
+identical to a signed-in user. Set `DEMO_MODE=false` to disable them and fall
+back to credential login.
+
+Credential flows remain available:
+
 1. `POST /api/v1/auth/register` - create a citizen account.
 2. `POST /api/v1/auth/login` - exchange credentials for a token pair.
-3. Click **Authorize** and paste the `access_token` to call protected endpoints.
 
 ### Authentication
 All protected endpoints expect `Authorization: Bearer <access_token>`.
@@ -59,7 +73,11 @@ OPENAPI_TAGS = [
     },
     {
         "name": "auth",
-        "description": "Registration, login and refresh-token rotation.",
+        "description": (
+            "Demo perspectives, registration, login and refresh-token rotation. "
+            "`GET /auth/demo` + `POST /auth/demo-session` back the console's "
+            "no-login perspective picker; `DEMO_MODE=false` disables them."
+        ),
     },
     {
         "name": "users",

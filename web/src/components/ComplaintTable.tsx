@@ -25,11 +25,13 @@ export function ComplaintTable({
 }: {
   items: Complaint[];
   selected: Set<string>;
-  onToggle: (id: string) => void;
-  onToggleAll: () => void;
+  /** Omit both to hide row selection (read-only views such as a citizen's list). */
+  onToggle?: (id: string) => void;
+  onToggleAll?: () => void;
   sort: SortKey;
   onSort: (sort: SortKey) => void;
 }) {
+  const selectable = Boolean(onToggle && onToggleAll);
   const allSelected = items.length > 0 && items.every((item) => selected.has(item.id));
   const someSelected = items.some((item) => selected.has(item.id));
 
@@ -37,22 +39,25 @@ export function ComplaintTable({
     <div className="overflow-x-auto rounded-lg border border-line bg-surface">
       <table className="data-table min-w-[900px]">
         <caption className="sr-only">
-          Complaint queue. Use the checkboxes to select rows for bulk actions.
+          Complaint queue.
+          {selectable ? " Use the checkboxes to select rows for bulk actions." : ""}
         </caption>
         <thead>
           <tr>
-            <th className="w-9 pl-3">
-              <input
-                type="checkbox"
-                className="h-3.5 w-3.5 rounded border-line-strong accent-[color:var(--primary)]"
-                checked={allSelected}
-                ref={(element) => {
-                  if (element) element.indeterminate = !allSelected && someSelected;
-                }}
-                onChange={onToggleAll}
-                aria-label={allSelected ? "Deselect all rows" : "Select all rows on this page"}
-              />
-            </th>
+            {selectable ? (
+              <th className="w-9 pl-3">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded border-line-strong accent-[color:var(--primary)]"
+                  checked={allSelected}
+                  ref={(element) => {
+                    if (element) element.indeterminate = !allSelected && someSelected;
+                  }}
+                  onChange={onToggleAll}
+                  aria-label={allSelected ? "Deselect all rows" : "Select all rows on this page"}
+                />
+              </th>
+            ) : null}
             {COLUMNS.map((column) => (
               <th
                 key={column.key}
@@ -103,15 +108,17 @@ export function ComplaintTable({
                 style={checked ? { background: "var(--primary-soft)" } : undefined}
                 data-selected={checked || undefined}
               >
-                <td className="pl-3">
-                  <input
-                    type="checkbox"
-                    className="h-3.5 w-3.5 rounded border-line-strong accent-[color:var(--primary)]"
-                    checked={checked}
-                    onChange={() => onToggle(complaint.id)}
-                    aria-label={`Select complaint ${shortId(complaint.id)}`}
-                  />
-                </td>
+                {selectable ? (
+                  <td className="pl-3">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 rounded border-line-strong accent-[color:var(--primary)]"
+                      checked={checked}
+                      onChange={() => onToggle?.(complaint.id)}
+                      aria-label={`Select complaint ${shortId(complaint.id)}`}
+                    />
+                  </td>
+                ) : null}
                 <td className="tabular text-[11px] text-faint">
                   <Link
                     to={`/queue/${complaint.id}`}

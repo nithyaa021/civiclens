@@ -20,23 +20,36 @@ export function SkeletonLines({ lines = 3, className }: { lines?: number; classN
 
 export function KpiSkeleton({ count = 5 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 xl:grid-cols-5">
+    <div
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5"
+      aria-hidden
+    >
       {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className="bg-surface p-4">
-          <Skeleton className="mb-3 h-3 w-24" />
-          <Skeleton className="mb-3 h-7 w-16" />
-          <Skeleton className="h-3 w-20" />
+        <div key={index} className="card panel-glow relative overflow-hidden p-4">
+          <span className="absolute inset-x-0 top-0 h-[3px] bg-line" aria-hidden />
+          <div className="flex items-center justify-between gap-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-7 w-7 rounded-lg" />
+          </div>
+          <Skeleton className="mt-2.5 h-7 w-16" />
+          <Skeleton className="mt-1.5 h-3 w-20" />
         </div>
       ))}
     </div>
   );
 }
 
-export function ChartSkeleton({ height = 240 }: { height?: number }) {
+export function ChartSkeleton({ height = 220 }: { height?: number }) {
   return (
-    <div className="card p-4" aria-hidden>
-      <Skeleton className="mb-4 h-3 w-32" />
-      <div className="flex items-end gap-2" style={{ height }} aria-hidden>
+    <div className="card flex h-full flex-col p-4" aria-hidden>
+      <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="mt-1.5 h-2.5 w-44" />
+        </div>
+        <Skeleton className="h-2.5 w-28" />
+      </div>
+      <div className="mt-3 flex items-end gap-2" style={{ height }} aria-hidden>
         {[42, 58, 36, 71, 52, 64, 47, 83, 61, 55, 74, 48, 66, 39].map((value, index) => (
           <Skeleton key={index} className="flex-1" style={{ height: `${value}%` }} />
         ))}

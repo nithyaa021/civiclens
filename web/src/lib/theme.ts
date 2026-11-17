@@ -16,7 +16,7 @@ export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  if (meta) meta.content = theme === "dark" ? "#0d1417" : "#f4f6f6";
+  if (meta) meta.content = theme === "dark" ? "#0b1020" : "#f6f8ff";
   try {
     window.localStorage.setItem(THEME_KEY, theme);
   } catch {

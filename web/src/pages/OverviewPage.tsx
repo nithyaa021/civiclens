@@ -115,7 +115,7 @@ export function OverviewPage() {
         <KpiCards kpis={overview.data.kpis} periodDays={overview.data.period_days} />
       )}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-3">
         {overview.isPending ? (
           <div className="xl:col-span-2">
             <ChartSkeleton height={220} />
@@ -126,12 +126,30 @@ export function OverviewPage() {
           </div>
         )}
         {overview.isPending ? (
-          <div className="card p-4">
-            <Skeleton className="mb-4 h-3 w-28" />
-            <div className="space-y-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} className="h-6" />
+          <div className="card flex h-full flex-col p-4">
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <div>
+                <Skeleton className="h-[19px] w-24" />
+                <Skeleton className="mt-0.5 h-4 w-40" />
+              </div>
+              <Skeleton className="h-7 w-20 rounded-md" />
+            </div>
+            <div className="space-y-2.5">
+              {Array.from({ length: 10 }).map((_, index) => (
+                <div key={index} className="px-1 py-0.5">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3.5 w-3.5 shrink-0" />
+                    <Skeleton className="h-[17px] w-24" />
+                    <Skeleton className="ml-auto h-[17px] w-8 shrink-0" />
+                    <Skeleton className="h-[17px] w-9 shrink-0" />
+                  </div>
+                  <Skeleton className="mt-1 h-1.5 w-full rounded-full" />
+                </div>
               ))}
+            </div>
+            <div className="mt-auto flex items-center gap-3 border-t border-line pt-2.5">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-16" />
             </div>
           </div>
         ) : overview.isError ? null : (
@@ -250,8 +268,7 @@ export function OverviewPage() {
                       className="h-full rounded-full"
                       style={{
                         width: `${(ward.complaint_count / wardRows.max) * 100}%`,
-                        background: "var(--primary)",
-                        opacity: 0.75,
+                        background: "linear-gradient(90deg, var(--aurora-4), var(--aurora-3))",
                       }}
                     />
                   </div>

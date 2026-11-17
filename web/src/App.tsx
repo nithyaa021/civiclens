@@ -1,18 +1,18 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useMemo, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { ThemeProvider } from "./lib/themeContext";
 import { AppShell } from "./components/Layout";
 import { Spinner } from "./components/States";
 import { Skeleton, SkeletonLines } from "./components/Skeleton";
 import { Wordmark } from "./components/Wordmark";
-import { LoginPage } from "./pages/LoginPage";
+import { ConnectionFailed } from "./pages/ConnectionFailed";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PublicPage } from "./pages/PublicPage";
 
-// Staff screens are code-split: the public portal and sign-in stay in the
-// initial bundle for anonymous visitors, while charts and map code load on use.
+// Views are code-split: the shell and transparency portal stay in the initial
+// bundle, while charts, the map and the assistant load on demand.
 const OverviewPage = lazy(() =>
   import("./pages/OverviewPage").then((module) => ({ default: module.OverviewPage })),
 );
@@ -31,19 +31,31 @@ const RecurringPage = lazy(() =>
 const AssistantPage = lazy(() =>
   import("./pages/AssistantPage").then((module) => ({ default: module.AssistantPage })),
 );
-const CitizenBlocked = lazy(() =>
-  import("./pages/CitizenBlocked").then((module) => ({ default: module.CitizenBlocked })),
-);
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+/**
+ * One cache per open perspective. Ward scoping, citizen redaction and audit
+ * visibility are all decided server-side, so reusing another view's cache would
+ * briefly show the wrong numbers - and offer actions the new role cannot take.
+ * Rebuilding the client on identity change drops every stale entry at once.
+ */
+function ConsoleQueries({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const client = useMemo(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 30_000,
+            retry: 1,
+            refetchOnWindowFocus: false,
+          },
+        },
+      }),
+    [user?.id],
+  );
+
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
 
 function LoadingScreen() {
   return (
@@ -51,7 +63,7 @@ function LoadingScreen() {
       <Wordmark />
       <span className="flex items-center gap-2 text-[12px] text-muted" role="status">
         <Spinner />
-        Verifying session…
+        Opening CivicLens…
       </span>
     </div>
   );
@@ -89,31 +101,38 @@ function PageSkeleton() {
   );
 }
 
-function RequireStaff() {
-  const { status, user } = useAuth();
-  const location = useLocation();
+/**
+ * Opens the console for everyone. There is no login wall: the app silently
+ * enters a seeded demo perspective, and visitors switch views from the header.
+ * This only fails when the API itself is unreachable.
+ */
+function OpenConsole() {
+  const { status, error, retry } = useAuth();
 
   if (status === "loading") return <LoadingScreen />;
-  if (status === "anonymous" || !user) {
-    return <Navigate to="/login" state={{ from: `${location.pathname}${location.search}` }} replace />;
-  }
-  if (user.role === "citizen") return <CitizenBlocked />;
+  if (status === "anonymous") return <ConnectionFailed message={error} onRetry={() => void retry()} />;
   return <Outlet />;
+}
+
+/** Citizens have no city-wide analytics, so the index sends them to their reports. */
+function OverviewIndex() {
+  const { user } = useAuth();
+  if (user?.role === "citizen") return <Navigate to="/queue" replace />;
+  return <OverviewPage />;
 }
 
 export function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <QueryClientProvider client={queryClient}>
+        <ConsoleQueries>
           <BrowserRouter>
             <Suspense fallback={<PageSkeleton />}>
               <Routes>
-                <Route path="/login" element={<LoginPage />} />
                 <Route path="/public" element={<PublicPage />} />
-                <Route element={<RequireStaff />}>
+                <Route element={<OpenConsole />}>
                   <Route element={<AppShell />}>
-                    <Route index element={<OverviewPage />} />
+                    <Route index element={<OverviewIndex />} />
                     <Route path="queue" element={<QueuePage />} />
                     <Route path="queue/:id" element={<ComplaintDetailPage />} />
                     <Route path="map" element={<MapPage />} />
@@ -125,7 +144,7 @@ export function App() {
               </Routes>
             </Suspense>
           </BrowserRouter>
-        </QueryClientProvider>
+        </ConsoleQueries>
       </AuthProvider>
     </ThemeProvider>
   );

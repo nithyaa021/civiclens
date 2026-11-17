@@ -15,6 +15,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { api } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/themeContext";
 import { usePageTitle } from "../lib/usePageTitle";
 import { categoryMeta, severityLabel, statusActionLabel, statusTransitions } from "../lib/meta";
@@ -240,6 +241,8 @@ function EvidenceBlock({ complaint }: { complaint: Complaint }) {
 export function ComplaintDetailPage() {
   const { id = "" } = useParams();
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const isStaff = user?.role === "admin" || user?.role === "ward_officer";
   const queryClient = useQueryClient();
   const [pendingStatus, setPendingStatus] = useState<ComplaintStatus | null>(null);
   const [statusNote, setStatusNote] = useState("");
@@ -262,12 +265,13 @@ export function ComplaintDetailPage() {
   const notes = useQuery({
     queryKey: ["notes", id],
     queryFn: () => api.notes(id),
-    enabled: Boolean(id),
+    enabled: Boolean(id) && isStaff,
   });
   const officers = useQuery({
     queryKey: ["officers"],
     queryFn: () => api.officers(),
     staleTime: 120_000,
+    enabled: isStaff,
   });
   const wards = useQuery({ queryKey: ["wards"], queryFn: api.wards, staleTime: 120_000 });
 
@@ -397,7 +401,7 @@ export function ComplaintDetailPage() {
       <div>
         <Link to="/queue" className="btn btn-ghost btn-sm -ml-2 mb-1">
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-          Complaint queue
+          {isStaff ? "Complaint queue" : "My complaints"}
         </Link>
         <div className="flex flex-col gap-3 border-b border-line pb-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
@@ -598,6 +602,7 @@ export function ComplaintDetailPage() {
         </div>
 
         <div className="space-y-4">
+          {isStaff ? (
           <section className="card p-4" aria-labelledby="actions-heading">
             <h2 id="actions-heading" className="section-title">
               Case actions
@@ -671,6 +676,7 @@ export function ComplaintDetailPage() {
               </p>
             </div>
           </section>
+          ) : null}
 
           <section className="card p-4" aria-labelledby="sla-heading">
             <h2 id="sla-heading" className="section-title">
@@ -743,6 +749,7 @@ export function ComplaintDetailPage() {
             <EvidenceBlock complaint={complaint} />
           </section>
 
+          {isStaff ? (
           <section className="card overflow-hidden" aria-labelledby="notes-heading">
             <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
               <div>
@@ -813,6 +820,7 @@ export function ComplaintDetailPage() {
               </div>
             </form>
           </section>
+          ) : null}
         </div>
       </div>
 

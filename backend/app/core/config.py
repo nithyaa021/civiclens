@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     # --- Redis ------------------------------------------------------
     redis_url: str = "redis://localhost:6379/0"
 
+    # --- Public demo ------------------------------------------------
+    # When enabled, `/auth/demo` and `/auth/demo-session` let visitors open the
+    # console without a login form.  They only ever issue tokens for the seeded
+    # synthetic accounts, never for real people.  Set DEMO_MODE=false to hide
+    # the whole flow behind normal credential login.
+    demo_mode: bool = True
+
     # --- JWT --------------------------------------------------------
     jwt_secret: str = DEV_JWT_SECRET
     jwt_algorithm: str = "HS256"

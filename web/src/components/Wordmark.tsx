@@ -9,25 +9,33 @@ export function Wordmark({ compact = false, inverse = false }: { compact?: boole
     >
       <span
         className={clsx(
-          "flex h-7 w-7 items-center justify-center rounded-[7px]",
+          "relative flex h-7 w-7 items-center justify-center rounded-[9px]",
           inverse ? "bg-white/12" : "bg-primary",
         )}
         aria-hidden
       >
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
+        <span
+          className="absolute inset-0 rounded-[9px] opacity-90"
+          style={{
+            background: inverse
+              ? "linear-gradient(140deg, var(--aurora-1), var(--aurora-4))"
+              : undefined,
+          }}
+        />
+        <svg viewBox="0 0 24 24" className="relative h-4 w-4" fill="none">
           <path
             d="M5 6.5h8.1a4.4 4.4 0 0 1 0 8.8H5V6.5Z"
-            stroke={inverse ? "#dbe7ea" : "var(--on-primary)"}
+            stroke={inverse ? "#ffffff" : "var(--on-primary)"}
             strokeWidth="1.9"
             strokeLinejoin="round"
           />
           <path
             d="M5 11h7"
-            stroke={inverse ? "#9fd0d8" : "var(--primary-soft)"}
+            stroke={inverse ? "#ffd9e4" : "var(--aurora-2)"}
             strokeWidth="1.9"
             strokeLinecap="round"
           />
-          <circle cx="18.2" cy="16.4" r="2" fill={inverse ? "#9fd0d8" : "var(--primary-soft)"} />
+          <circle cx="18.2" cy="16.4" r="2" fill={inverse ? "#ffd9e4" : "var(--aurora-2)"} />
         </svg>
       </span>
       {!compact ? (

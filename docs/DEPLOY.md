@@ -262,18 +262,18 @@ Run these in order:
 2. `GET https://api.<ip>.sslip.io/api/v1/health` returns `200`, with Mongo and
    Redis `ok`.
 3. `https://api.<ip>.sslip.io/docs` loads Swagger UI.
-4. Open the Vercel URL and sign in as
-   `admin@civiclens.dev / Admin#12345`. The overview should show non-zero KPIs
-   and a 180-day trend.
+4. Open the Vercel URL. It opens straight into the **City-wide administrator**
+   perspective with no login form. The overview should show non-zero KPIs and a
+   180-day trend.
 5. Open **Complaint queue**, filter to an open case, add an internal note and
    transition it.
-6. Sign in as `officer12@civiclens.dev / Officer#12345`, open a ward-12 case
-   with before-photo evidence, upload an after photo and submit it for
-   verification. The detail page should show a confidence score.
-7. Sign in as `citizen1@civiclens.dev / Citizen#12345` to confirm the resolution;
-   the case should move to `closed` and the audit trail should record the
-   confirmation. The staff console redirects citizens, so use the API or the
-   citizen client for this step.
+6. Use the **Viewing as** picker in the header to switch to **Ward 12 officer**,
+   open a ward-12 case with before-photo evidence, upload an after photo and
+   submit it for verification. The detail page should show a confidence score.
+7. Switch to the **Citizen** perspective and confirm the resolution; the case
+   should move to `closed` and the audit trail should record the confirmation.
+   Citizens only see their own reports, and the staff analytics views are hidden
+   for them rather than shown as dead links.
 8. Open `/public` in a private window: it must load without a token and show
    aggregate ward performance.
 9. Submit a complaint through `POST /api/v1/complaints/similar` before filing,
@@ -307,9 +307,10 @@ run it against a database you care about, or reseed afterwards with
 
 ## 7. Lighthouse
 
-Run Lighthouse against the deployed console **after** signing in, on the
-overview route. Use Chrome DevTools -> Lighthouse -> **Desktop**, Performance
-and Accessibility, with extensions disabled.
+Run Lighthouse against the deployed console on the overview route — it opens
+directly in the administrator perspective, so no sign-in step is needed. Use
+Chrome DevTools -> Lighthouse -> **Desktop**, Performance and Accessibility,
+with extensions disabled.
 
 Targets:
 

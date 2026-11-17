@@ -33,6 +33,8 @@ export interface TokenPair {
   refresh_token: string;
   token_type: string;
   expires_in: number;
+  /** Present on login and demo-session responses. */
+  user?: User;
 }
 
 export interface Page<T> {

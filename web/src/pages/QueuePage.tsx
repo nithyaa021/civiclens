@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router-dom";import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, RefreshCw, Tag, UserRoundCheck, X } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -32,8 +31,9 @@ const BULK_STATUSES: { value: ComplaintStatus; label: string }[] = [
 ];
 
 export function QueuePage() {
-  usePageTitle("Complaint queue");
   const { user } = useAuth();
+  const isStaff = user?.role === "admin" || user?.role === "ward_officer";
+  usePageTitle(isStaff ? "Complaint queue" : "My complaints");
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => searchToFilters(searchParams), [searchParams]);
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
@@ -50,12 +50,14 @@ export function QueuePage() {
   const queryClient = useQueryClient();
 
   const list = useQuery({
-    queryKey: ["complaints", filters, page],
+    queryKey: ["complaints", filters, page, user?.role],
     queryFn: () =>
       api.complaints({
         ...filters,
         page,
         page_size: PAGE_SIZE,
+        // Citizens only ever see their own reports; staff see the ward/city.
+        mine: user?.role === "citizen" ? true : undefined,
         ward: user?.role === "ward_officer" ? (filters.ward ?? user.ward) : filters.ward,
       }),
     placeholderData: (previous) => previous,
@@ -66,6 +68,7 @@ export function QueuePage() {
     queryKey: ["officers", user?.ward],
     queryFn: () => api.officers(user?.role === "ward_officer" ? (user.ward ?? undefined) : undefined),
     staleTime: 120_000,
+    enabled: isStaff,
   });
 
   useEffect(() => {
@@ -142,23 +145,32 @@ export function QueuePage() {
   return (
     <div className="mx-auto max-w-[1440px] space-y-4">
       <PageHeader
-        eyebrow="Case management"
-        title="Complaint queue"
+        eyebrow={isStaff ? "Case management" : "Your reports"}
+        title={isStaff ? "Complaint queue" : "My complaints"}
         description={
           list.data
-            ? `${formatNumber(list.data.total)} reports in the current view${activeFilterCount(filters) ? " · filters applied" : ""}. Select rows for bulk assignment or workflow updates.`
-            : "Review, prioritise and dispatch municipal complaints."
+            ? `${formatNumber(list.data.total)} ${isStaff ? "reports in the current view" : "reports you filed"}${activeFilterCount(filters) ? " · filters applied" : ""}. ${isStaff ? "Select rows for bulk assignment or workflow updates." : "Open a case to follow its progress or confirm the fix."}`
+            : isStaff
+              ? "Review, prioritise and dispatch municipal complaints."
+              : "Track everything you have reported and confirm when it is fixed."
         }
         actions={
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => void list.refetch()}
-            disabled={list.isFetching}
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${list.isFetching ? "animate-spin" : ""}`} aria-hidden />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            {!isStaff ? (
+              <Link to="/public" className="btn btn-secondary btn-sm">
+                Transparency portal
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => void list.refetch()}
+              disabled={list.isFetching}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${list.isFetching ? "animate-spin" : ""}`} aria-hidden />
+              Refresh
+            </button>
+          </div>
         }
       />
 
@@ -219,7 +231,7 @@ export function QueuePage() {
         </div>
       ) : null}
 
-      {selected.size > 0 ? (
+      {isStaff && selected.size > 0 ? (
         <div
           className="sticky top-14 z-20 flex flex-wrap items-center gap-2 rounded-lg border border-[color:var(--primary)] bg-[color:var(--primary-soft)] px-3 py-2 shadow-panel"
           role="region"
@@ -276,8 +288,12 @@ export function QueuePage() {
       ) : list.data.items.length === 0 ? (
         <div className="card">
           <EmptyState
-            title="No complaints match these filters"
-            description="Try a broader status, category or ward selection. Saved views can be reused from the filter bar."
+            title={isStaff ? "No complaints match these filters" : "You have not reported anything here yet"}
+            description={
+              isStaff
+                ? "Try a broader status, category or ward selection. Saved views can be reused from the filter bar."
+                : "When you report an issue it appears here with its live status and resolution updates."
+            }
             action={
               activeFilterCount(filters) > 0 ? (
                 <button type="button" className="btn btn-secondary btn-sm" onClick={reset}>
@@ -292,8 +308,8 @@ export function QueuePage() {
           <ComplaintTable
             items={list.data.items}
             selected={selected}
-            onToggle={toggle}
-            onToggleAll={toggleAll}
+            onToggle={isStaff ? toggle : undefined}
+            onToggleAll={isStaff ? toggleAll : undefined}
             sort={filters.sort}
             onSort={changeSort}
           />

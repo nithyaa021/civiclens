@@ -31,7 +31,7 @@ from app.models.user import Role, UserPublic, UserRegister, UserStatus
 REFRESH_JTI_PREFIX = "auth:refresh:"
 
 
-def _serialize(doc: dict[str, Any]) -> UserPublic:
+def serialize_doc(doc: dict[str, Any]) -> UserPublic:
     return UserPublic(
         id=str(doc["_id"]),
         email=doc["email"],
@@ -73,7 +73,7 @@ async def register_user(
     }
     result = await db["users"].insert_one(doc)
     doc["_id"] = result.inserted_id
-    return _serialize(doc)
+    return serialize_doc(doc)
 
 
 async def authenticate(db: AsyncIOMotorDatabase, email: str, password: str) -> UserPublic:
@@ -102,7 +102,7 @@ async def authenticate(db: AsyncIOMotorDatabase, email: str, password: str) -> U
             {"$set": {"password_hash": hash_password(password), "updated_at": datetime.now(UTC)}},
         )
 
-    return _serialize(doc)
+    return serialize_doc(doc)
 
 
 async def _store_refresh_jti(redis: Redis, jti: str, user_id: str, expires_days: int) -> None:
@@ -161,7 +161,7 @@ async def _load_active_user(db: AsyncIOMotorDatabase, user_id: str) -> UserPubli
         raise UnauthorizedError("Account no longer exists.", code="user_not_found")
     if doc.get("status") != UserStatus.ACTIVE.value:
         raise UnauthorizedError("Account is deactivated.", code="user_inactive")
-    return _serialize(doc)
+    return serialize_doc(doc)
 
 
 async def refresh_tokens(

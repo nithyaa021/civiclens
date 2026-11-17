@@ -39,3 +39,40 @@ class MeResponse(BaseModel):
 
     user: UserPublic
     role: Role = Field(description="Denormalised role for client routing hints.")
+
+
+class DemoPerspective(BaseModel):
+    """A view a visitor can open in the public demo without credentials."""
+
+    id: str = Field(
+        description="Opaque id passed back to /auth/demo-session.",
+        examples=["ward-12"],
+    )
+    label: str = Field(description="Human label for the picker.", examples=["Ward 12 · Jayanagar"])
+    role: Role = Field(description="Role the demo session will hold.")
+    ward: int | None = Field(
+        default=None,
+        description="Ward scope for ward-officer perspectives; null is city-wide.",
+    )
+    description: str = Field(description="One-line explanation of what this view shows.")
+
+
+class DemoDirectory(BaseModel):
+    """Every perspective available in the public demo."""
+
+    enabled: bool = Field(description="False when the demo session flow is switched off.")
+    default: str | None = Field(default=None, description="Perspective to open on first visit.")
+    perspectives: list[DemoPerspective] = Field(
+        default_factory=list, description="Ordered by role, then ward number."
+    )
+
+
+class DemoSessionRequest(BaseModel):
+    """Pick a perspective to open.  No credentials are involved."""
+
+    perspective: str = Field(
+        min_length=1,
+        max_length=32,
+        description="Perspective id from GET /auth/demo, e.g. 'admin' or 'ward-12'.",
+        examples=["admin"],
+    )

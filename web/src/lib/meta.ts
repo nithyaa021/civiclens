@@ -21,26 +21,46 @@ export interface CategoryMeta {
 }
 
 export const categoryMeta: Record<ComplaintCategory, CategoryMeta> = {
-  roads: { label: "Roads", short: "Roads", icon: Route, className: "text-[#67552e]" },
-  drainage: { label: "Drainage", short: "Drainage", icon: Waves, className: "text-[#2f6470]" },
-  water_supply: { label: "Water supply", short: "Water", icon: Droplets, className: "text-[#2e5f8a]" },
-  sanitation: { label: "Sanitation", short: "Sanitation", icon: Wrench, className: "text-[#5d5b47]" },
+  roads: { label: "Roads", short: "Roads", icon: Route, className: "text-[color:var(--cat-roads)]" },
+  drainage: { label: "Drainage", short: "Drainage", icon: Waves, className: "text-[color:var(--cat-drainage)]" },
+  water_supply: {
+    label: "Water supply",
+    short: "Water",
+    icon: Droplets,
+    className: "text-[color:var(--cat-water)]",
+  },
+  sanitation: {
+    label: "Sanitation",
+    short: "Sanitation",
+    icon: Wrench,
+    className: "text-[color:var(--cat-sanitation)]",
+  },
   waste_management: {
     label: "Waste management",
     short: "Waste",
     icon: Trash2,
-    className: "text-[#5a6640]",
+    className: "text-[color:var(--cat-waste)]",
   },
-  streetlight: { label: "Street lighting", short: "Lighting", icon: Lightbulb, className: "text-[#7b6123]" },
+  streetlight: {
+    label: "Street lighting",
+    short: "Lighting",
+    icon: Lightbulb,
+    className: "text-[color:var(--cat-lighting)]",
+  },
   traffic_signal: {
     label: "Traffic signals",
     short: "Signals",
     icon: TrafficCone,
-    className: "text-[#7a4b3a]",
+    className: "text-[color:var(--cat-traffic)]",
   },
-  noise: { label: "Noise", short: "Noise", icon: Volume2, className: "text-[#5b5a72]" },
-  parks_trees: { label: "Parks & trees", short: "Parks", icon: Trees, className: "text-[#386346]" },
-  other: { label: "Other", short: "Other", icon: CircleHelp, className: "text-[#5d6669]" },
+  noise: { label: "Noise", short: "Noise", icon: Volume2, className: "text-[color:var(--cat-noise)]" },
+  parks_trees: {
+    label: "Parks & trees",
+    short: "Parks",
+    icon: Trees,
+    className: "text-[color:var(--cat-parks)]",
+  },
+  other: { label: "Other", short: "Other", icon: CircleHelp, className: "text-[color:var(--cat-other)]" },
 };
 
 export const categories = Object.keys(categoryMeta) as ComplaintCategory[];
@@ -54,28 +74,32 @@ export interface StatusMeta {
 export const statusMeta: Record<ComplaintStatus, StatusMeta> = {
   submitted: {
     label: "Submitted",
-    dot: "bg-[#2c5f8a]",
-    className: "border-[#c9d9e7] bg-[#eaf1f8] text-[#224c70]",
+    dot: "bg-[color:var(--info)]",
+    className:
+      "border-[color:var(--info-border)] bg-[color:var(--info-soft)] text-[color:var(--info)]",
   },
   assigned: {
     label: "Assigned",
-    dot: "bg-[#6b5b95]",
-    className: "border-[#d9d2e9] bg-[#f1eef8] text-[#544677]",
+    dot: "bg-[color:var(--aurora-4)]",
+    className:
+      "border-[color:var(--primary-soft)] bg-[color:var(--primary-soft)] text-[color:var(--primary)]",
   },
   in_progress: {
     label: "In progress",
-    dot: "bg-[#94620f]",
-    className: "border-[#ead9b7] bg-[#fbf1dd] text-[#7c520c]",
+    dot: "bg-[color:var(--warning)]",
+    className:
+      "border-[color:var(--warning-border)] bg-[color:var(--warning-soft)] text-[color:var(--warning)]",
   },
   resolved: {
     label: "Resolved",
-    dot: "bg-[#1f7a4d]",
-    className: "border-[#c5e2d3] bg-[#e8f4ed] text-[#19643f]",
+    dot: "bg-[color:var(--positive)]",
+    className:
+      "border-[color:var(--positive-border)] bg-[color:var(--positive-soft)] text-[color:var(--positive)]",
   },
   closed: {
     label: "Closed",
-    dot: "bg-[#5b6b72]",
-    className: "border-[#d8dee0] bg-[#f2f4f5] text-[#4a585e]",
+    dot: "bg-[color:var(--faint)]",
+    className: "border-line bg-raised text-muted",
   },
 };
 

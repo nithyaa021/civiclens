@@ -4,70 +4,104 @@
 
 :root {
   color-scheme: light;
-  --canvas: #f4f6f6;
+  --canvas: #f6f8ff;
   --surface: #ffffff;
-  --raised: #f9fbfb;
-  --ink: #182226;
-  --muted: #5b6b72;
-  --faint: #647379;
-  --line: #e2e7e8;
-  --line-strong: #cbd5d7;
-  --primary: #1b526d;
-  --primary-hover: #15445c;
-  --primary-soft: #e9f1f4;
+  --raised: #f3f6ff;
+  --ink: #14203a;
+  --muted: #566280;
+  --faint: #626d88;
+  --line: #e4e9f7;
+  --line-strong: #c9d3ea;
+  --primary: #4a4bd8;
+  --primary-hover: #3a3bc4;
+  --primary-soft: #ecebff;
   --on-primary: #ffffff;
-  --positive: #1f7a4d;
-  --positive-soft: #e8f4ed;
-  --positive-border: #c3dfd0;
-  --warning: #94620f;
-  --warning-soft: #fbf1dd;
-  --warning-border: #e8d6b3;
-  --critical: #a33a32;
-  --critical-soft: #fbecea;
-  --critical-border: #eccac6;
-  --info: #2c5f8a;
-  --info-soft: #eaf1f8;
-  --info-border: #cadbea;
-  --sidebar: #10262f;
-  --sidebar-ink: #dbe7ea;
-  --sidebar-muted: #8fa6ae;
-  --sidebar-active: #1b3a47;
-  --chart-grid: #e8edee;
-  --overlay: rgb(16 38 47 / 0.42);
+  --positive: #0f7a55;
+  --positive-soft: #e2f7ef;
+  --positive-border: #a9e3cc;
+  --warning: #8a5300;
+  --warning-soft: #fff3dc;
+  --warning-border: #f3d49b;
+  --critical: #b32d46;
+  --critical-soft: #ffe9ec;
+  --critical-border: #f7bcc6;
+  --info: #0f5fa8;
+  --info-soft: #e4f0ff;
+  --info-border: #b4d5f7;
+  /* Accent ramp used for gradients, active markers and the brand glyph. */
+  --aurora-1: #ff5d8f;
+  --aurora-2: #ffb02e;
+  --aurora-3: #2ec8b0;
+  --aurora-4: #6c5ce7;
+  --sidebar: #161a4a;
+  --sidebar-ink: #eef1ff;
+  --sidebar-muted: #a5abd4;
+  --sidebar-active: rgb(255 255 255 / 0.13);
+  --sidebar-hover: rgb(255 255 255 / 0.07);
+  --sidebar-line: rgb(255 255 255 / 0.1);
+  --chart-grid: #e8edfb;
+  --overlay: rgb(20 28 62 / 0.45);
+  /* Category accents: picked for >=4.5:1 on --surface in each theme. */
+  --cat-roads: #8a5a00;
+  --cat-drainage: #0d6b7d;
+  --cat-water: #0f5fa8;
+  --cat-sanitation: #1a6b45;
+  --cat-waste: #5b6b1f;
+  --cat-lighting: #8f6100;
+  --cat-traffic: #b8420a;
+  --cat-noise: #5f4fd0;
+  --cat-parks: #2b7d3a;
+  --cat-other: #5a6480;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --canvas: #0d1417;
-  --surface: #131c20;
-  --raised: #172227;
-  --ink: #e2e9ea;
-  --muted: #a0aeb3;
-  --faint: #8a9a9f;
-  --line: #253237;
-  --line-strong: #35454a;
-  --primary: #78b4cb;
-  --primary-hover: #93c8db;
-  --primary-soft: #152a33;
-  --on-primary: #071418;
-  --positive: #67bd90;
-  --positive-soft: #122a20;
-  --positive-border: #224b37;
-  --warning: #d4a85c;
-  --warning-soft: #2b2212;
-  --warning-border: #4a3a1c;
-  --critical: #dc8b83;
-  --critical-soft: #2d1917;
-  --critical-border: #532c27;
-  --info: #85b4da;
-  --info-soft: #14242f;
-  --info-border: #274354;
-  --sidebar: #0a1215;
-  --sidebar-ink: #d5e1e4;
-  --sidebar-muted: #82979e;
-  --sidebar-active: #17272d;
-  --chart-grid: #223035;
-  --overlay: rgb(3 8 10 / 0.6);
+  --canvas: #0b1020;
+  --surface: #131a30;
+  --raised: #1a2140;
+  --ink: #e8ecfb;
+  --muted: #a2add0;
+  --faint: #8b97bc;
+  --line: #232c4c;
+  --line-strong: #35406a;
+  --primary: #8b8cff;
+  --primary-hover: #a3a4ff;
+  --primary-soft: #20224a;
+  --on-primary: #0b1020;
+  --positive: #4fd8a4;
+  --positive-soft: #102c25;
+  --positive-border: #1f5a47;
+  --warning: #f0be63;
+  --warning-soft: #2d2413;
+  --warning-border: #57431f;
+  --critical: #ff8fa3;
+  --critical-soft: #331722;
+  --critical-border: #5d2b3a;
+  --info: #79b8ff;
+  --info-soft: #122440;
+  --info-border: #24436b;
+  --aurora-1: #ff7aa2;
+  --aurora-2: #ffc45c;
+  --aurora-3: #4fe0c8;
+  --aurora-4: #9a8cff;
+  --sidebar: #080d1d;
+  --sidebar-ink: #e8ecfb;
+  --sidebar-muted: #98a3c8;
+  --sidebar-active: rgb(255 255 255 / 0.1);
+  --sidebar-hover: rgb(255 255 255 / 0.05);
+  --sidebar-line: rgb(255 255 255 / 0.08);
+  --chart-grid: #212a49;
+  --overlay: rgb(3 7 18 / 0.66);
+  --cat-roads: #f2c469;
+  --cat-drainage: #6fd8e8;
+  --cat-water: #79b8ff;
+  --cat-sanitation: #63dba6;
+  --cat-waste: #c3d86a;
+  --cat-lighting: #f7cf6b;
+  --cat-traffic: #ff9a72;
+  --cat-noise: #b0a4ff;
+  --cat-parks: #7ede95;
+  --cat-other: #a7b2d4;
 }
 
 * {
@@ -82,7 +116,11 @@ body,
 
 body {
   margin: 0;
-  background: var(--canvas);
+  background:
+    radial-gradient(1100px 520px at 8% -8%, color-mix(in srgb, var(--aurora-4) 13%, transparent), transparent 70%),
+    radial-gradient(900px 460px at 96% -4%, color-mix(in srgb, var(--aurora-1) 11%, transparent), transparent 68%),
+    var(--canvas);
+  background-attachment: fixed;
   color: var(--ink);
   font-family: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 14px;
@@ -92,7 +130,7 @@ body {
 }
 
 ::selection {
-  background: var(--primary-soft);
+  background: color-mix(in srgb, var(--aurora-4) 22%, transparent);
   color: var(--ink);
 }
 
@@ -119,19 +157,24 @@ a {
 
 @layer components {
   .card {
-    @apply rounded-lg border border-line bg-surface shadow-panel;
+    @apply rounded-xl border border-line bg-surface shadow-panel;
   }
 
   .btn {
-    @apply inline-flex h-[34px] shrink-0 items-center justify-center gap-1.5 rounded border px-3 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex h-[34px] shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 text-[13px] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-primary {
     @apply border-transparent bg-primary text-[color:var(--on-primary)] hover:bg-primary-hover;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 34%, transparent);
   }
 
   .btn-secondary {
-    @apply border-line-strong bg-surface text-ink hover:bg-raised;
+    @apply border-line-strong bg-surface text-ink hover:border-[color:var(--primary)] hover:bg-raised hover:text-primary;
   }
 
   .btn-ghost {
@@ -143,15 +186,15 @@ a {
   }
 
   .btn-sm {
-    @apply h-7 px-2 text-xs;
+    @apply h-7 rounded-md px-2 text-xs;
   }
 
   .field {
-    @apply h-[34px] w-full rounded border border-line-strong bg-surface px-2.5 text-[13px] text-ink placeholder:text-faint focus:border-primary focus:outline-none;
+    @apply h-[34px] w-full rounded-lg border border-line-strong bg-surface px-2.5 text-[13px] text-ink placeholder:text-faint focus:border-primary focus:outline-none;
   }
 
   .field-textarea {
-    @apply min-h-[88px] w-full resize-y rounded border border-line-strong bg-surface px-2.5 py-2 text-[13px] text-ink placeholder:text-faint focus:border-primary focus:outline-none;
+    @apply min-h-[88px] w-full resize-y rounded-lg border border-line-strong bg-surface px-2.5 py-2 text-[13px] text-ink placeholder:text-faint focus:border-primary focus:outline-none;
   }
 
   .field:focus,
@@ -165,7 +208,7 @@ a {
   }
 
   .chip {
-    @apply inline-flex h-6 items-center gap-1 rounded border border-line bg-raised px-2 text-[11px] font-medium text-muted;
+    @apply inline-flex h-6 items-center gap-1 rounded-full border border-line bg-raised px-2 text-[11px] font-medium text-muted;
   }
 
   .section-title {
@@ -202,6 +245,17 @@ a {
 
   .stat-value {
     @apply tabular text-[28px] font-semibold leading-none tracking-[-0.02em] text-ink;
+  }
+
+  /* Frosted panel used for the headline KPI strip. */
+  .panel-glow {
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--surface) 100%, transparent), color-mix(in srgb, var(--raised) 70%, var(--surface)));
+  }
+
+  /* Hairline accent used on the top edge of feature cards. */
+  .accent-bar {
+    background: linear-gradient(90deg, var(--aurora-1), var(--aurora-2), var(--aurora-3), var(--aurora-4));
   }
 
   .skeleton {

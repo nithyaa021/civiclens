@@ -77,8 +77,8 @@ export function PublicPage() {
             >
               {theme === "dark" ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
             </button>
-            <Link to="/login" className="btn btn-secondary btn-sm">
-              Staff sign in
+            <Link to="/" className="btn btn-primary btn-sm">
+              Open the console
             </Link>
           </div>
         </div>
@@ -360,8 +360,8 @@ export function PublicPage() {
           <span>CivicLens · {stats.data?.generated_for ?? "Municipal transparency portal"}</span>
           <span>
             Data refreshed {stats.data ? formatDateTime(stats.data.generated_at) : "periodically"} ·{" "}
-            <Link to="/login" className="underline hover:text-ink">
-              Staff access
+            <Link to="/" className="underline hover:text-ink">
+              Open the console
             </Link>
           </span>
         </footer>

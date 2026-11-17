@@ -60,15 +60,15 @@ function ClusterMarkers({ points, theme }: { points: MapComplaint[]; theme: stri
       const marker = L.circleMarker([lat, lng], {
         radius: 5.5,
         weight: 1.5,
-        color: theme === "dark" ? "#131c20" : "#ffffff",
+        color: theme === "dark" ? "#131a30" : "#ffffff",
         fillColor:
           point.status === "resolved" || point.status === "closed"
             ? theme === "dark"
-              ? "#67bd90"
-              : "#1f7a4d"
+              ? "#4fd8a4"
+              : "#0f7a55"
             : theme === "dark"
-              ? "#78b4cb"
-              : "#1b526d",
+              ? "#8b8cff"
+              : "#4a4bd8",
         fillOpacity: 0.92,
       });
       marker.bindPopup(
@@ -108,7 +108,7 @@ function HeatLayer({ points }: { points: MapComplaint[] }) {
         blur: 22,
         maxZoom: 16,
         minOpacity: 0.16,
-        gradient: { 0.2: "#9fd0d8", 0.45: "#5a93a8", 0.7: "#1b526d", 0.9: "#a33a32" },
+        gradient: { 0.2: "#6fd8e8", 0.45: "#6c5ce7", 0.7: "#4a4bd8", 0.9: "#b32d46" },
       },
     );
     layer.addTo(map);
@@ -170,7 +170,7 @@ export function CivicMap({
     [wards, forecastByWard],
   );
 
-  const accent = theme === "dark" ? "#78b4cb" : "#1b526d";
+  const accent = theme === "dark" ? "#8b8cff" : "#4a4bd8";
 
   return (
     <MapContainer

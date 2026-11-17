@@ -14,9 +14,17 @@ from app.core.deps import (
     SettingsDep,
     auth_rate_limit,
 )
-from app.models.token import AuthMessage, MeResponse, RefreshRequest, TokenResponse
+from app.models.token import (
+    AuthMessage,
+    DemoDirectory,
+    DemoSessionRequest,
+    MeResponse,
+    RefreshRequest,
+    TokenResponse,
+)
 from app.models.user import UserPublic, UserRegister
 from app.services import auth as auth_service
+from app.services import demo as demo_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -134,3 +142,49 @@ async def logout(
 )
 async def me(user: CurrentUserDep) -> MeResponse:
     return MeResponse(user=user, role=user.role)
+
+
+@router.get(
+    "/demo",
+    response_model=DemoDirectory,
+    status_code=status.HTTP_200_OK,
+    summary="Perspectives available in the public demo",
+    description=(
+        "Anonymous. Lists the seeded synthetic accounts a visitor can open the "
+        "console as, so the UI can offer a view picker instead of a login form. "
+        "Returns `enabled: false` when `DEMO_MODE` is off."
+    ),
+    responses={200: {"description": "Demo directory (possibly disabled)."}},
+)
+async def demo_directory(db: DbDep, settings: SettingsDep) -> DemoDirectory:
+    return await demo_service.directory(db, enabled=settings.demo_mode)
+
+
+@router.post(
+    "/demo-session",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Open a demo session",
+    description=(
+        "Anonymous. Issues a normal short-lived token pair for one of the "
+        "**seeded synthetic** demo accounts, so every role guard and ward scope "
+        "continues to apply. Never issues tokens for real deployments' users. "
+        "Rate limited on the stricter auth bucket."
+    ),
+    responses={
+        200: {"description": "Demo token pair issued."},
+        404: {"description": "Unknown perspective, or the demo is disabled."},
+        429: {"description": "Rate limit exceeded."},
+    },
+    dependencies=[Depends(auth_rate_limit)],
+)
+async def demo_session(
+    payload: DemoSessionRequest,
+    db: DbDep,
+    redis: RedisDep,
+    settings: SettingsDep,
+) -> TokenResponse:
+    demo_service.assert_enabled(settings)
+    doc = await demo_service.resolve(db, payload.perspective)
+    user = auth_service.serialize_doc(doc)
+    return await auth_service.issue_tokens(db, redis, settings, user)

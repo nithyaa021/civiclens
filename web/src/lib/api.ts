@@ -56,6 +56,20 @@ export interface MeResponse {
   role: User["role"];
 }
 
+export interface DemoPerspective {
+  id: string;
+  label: string;
+  role: User["role"];
+  ward: number | null;
+  description: string;
+}
+
+export interface DemoDirectory {
+  enabled: boolean;
+  default: string | null;
+  perspectives: DemoPerspective[];
+}
+
 function readTokens(): TokenPair | null {
   try {
     const raw = window.localStorage.getItem(TOKEN_KEY);
@@ -251,6 +265,22 @@ export const api = {
 
   me(): Promise<MeResponse> {
     return request<MeResponse>("/auth/me");
+  },
+
+  /** Perspectives a visitor can open without credentials. */
+  demoPerspectives(): Promise<DemoDirectory> {
+    return request<DemoDirectory>("/auth/demo", { auth: false });
+  },
+
+  /** Open a demo session; the token pair is stored for subsequent calls. */
+  async openDemoSession(perspective: string): Promise<TokenPair> {
+    const pair = await request<TokenPair>("/auth/demo-session", {
+      method: "POST",
+      body: { perspective },
+      auth: false,
+    });
+    authStore.set(pair);
+    return pair;
   },
 
   overview(periodDays = 30): Promise<Overview> {

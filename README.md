@@ -23,8 +23,8 @@ and always cites real complaint IDs.
 
 ![CivicLens walkthrough](docs/demo.gif)
 
-*28-second walkthrough: sign in, ward-scoped overview, complaint queue, case
-detail with verification evidence, city map and the public transparency portal.*
+*28-second walkthrough: perspective picker, ward-scoped overview, complaint queue,
+case detail with verification evidence, city map and the public transparency portal.*
 
 ---
 
@@ -49,18 +49,27 @@ The two placeholder rows are filled in by `docs/DEPLOY.md` section 1 (the VM's
 reserved IPv4) and section 4 (the Vercel production domain). Nothing else in this
 README changes when the demo goes live.
 
-The sign-in page lists these seeded development accounts. They are created by
-`backend/scripts/seed_dataset.py` and exist in any seeded environment.
+There is no login screen. The console opens straight into a seeded demo
+perspective, and the **Viewing as** picker in the header switches between
+city-wide administration, any of the 25 wards, or a citizen's own reports. A
+perspective is a real short-lived session for a seeded synthetic account, so
+role permissions, ward scoping and the audit trail behave exactly as they would
+for a signed-in user.
 
-| Role | Email | Password | What to try |
-|---|---|---|---|
-| Admin | `admin@civiclens.dev` | `Admin#12345` | Every ward, analytics, user administration |
-| Ward officer | `officer12@civiclens.dev` | `Officer#12345` | Ward 12 queue, notes, after-photo resolution |
-| Citizen | `citizen1@civiclens.dev` | `Citizen#12345` | File, vote, confirm or dispute a fix |
+| Perspective | Seeded account | What to try |
+|---|---|---|
+| City-wide administrator | `admin@civiclens.dev` | Every ward, all analytics, bulk actions, assignment |
+| Ward officer (×25) | `officer12@civiclens.dev` | Ward 12 queue, internal notes, after-photo resolution |
+| Citizen | `citizen1@civiclens.dev` | Own reports, voting, confirming or disputing a fix |
 
-The console is an authority tool: citizen accounts can sign in but are redirected
-to a "use the mobile app" notice. The public portal is reachable without an
-account.
+These accounts come from `backend/scripts/seed_dataset.py`. Password login
+(`POST /auth/login`) still works for anything scripted, and
+`GET /auth/demo` + `POST /auth/demo-session` back the picker; set
+`DEMO_MODE=false` to switch the whole flow off and fall back to credentials.
+
+Citizens see only their own reports, and the staff-only analytics views are
+hidden rather than shown as dead links. The public transparency portal is
+reachable without any session at all.
 
 ---
 
@@ -630,6 +639,8 @@ The console sidebar links to `/docs`; the deployed URL is listed in
 | `GET /health` | public | Liveness (unversioned) |
 | `GET /api/v1/health` | public | Readiness: Mongo + Redis probes, `503` when degraded |
 | `POST /auth/register` | public | Citizen self-registration |
+| `GET /auth/demo` | public | Perspectives the console can open (no credentials) |
+| `POST /auth/demo-session` | public | Mint a short-lived session for a seeded demo account |
 | `POST /auth/login` | public | Credentials → access + refresh token pair |
 | `POST /auth/refresh` | refresh token | Rotate the pair (old refresh is revoked) |
 | `POST /auth/logout` | refresh token | Revoke a refresh token |
@@ -891,7 +902,7 @@ civiclens/
 - [x] **Phase 4 — City-scale corpus:** 25 real wards with boundary polygons and
   per-ward volume/severity/speed profiles, ~3,400-3,500 complaints over 180 days,
   realistic addresses and coordinates, labelled duplicates and resolution pairs,
-  demo accounts surfaced on the sign-in page.
+  demo accounts exposed through the console's perspective picker.
 - [x] **Phase 5 — Deployment and demo:** Oracle Always Free Ampere VM with
   Compose, Caddy TLS, MongoDB/Redis/Qdrant, Vercel configuration, idempotent
   first-boot bootstrap, GitHub Actions CI/CD, real screenshots, demo GIF,

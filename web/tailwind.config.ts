@@ -36,12 +36,13 @@ export default {
       },
       borderRadius: {
         DEFAULT: "6px",
-        md: "7px",
-        lg: "8px",
+        md: "8px",
+        lg: "10px",
+        xl: "12px",
       },
       boxShadow: {
-        panel: "0 1px 2px rgb(15 23 26 / 0.04)",
-        pop: "0 8px 24px rgb(15 23 26 / 0.10), 0 1px 3px rgb(15 23 26 / 0.08)",
+        panel: "0 1px 2px rgb(20 32 58 / 0.04), 0 1px 3px rgb(20 32 58 / 0.03)",
+        pop: "0 16px 40px rgb(20 32 58 / 0.14), 0 2px 8px rgb(20 32 58 / 0.08)",
       },
       fontSize: {
         "2xs": ["11px", { lineHeight: "15px" }],

@@ -49,7 +49,7 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
   const totalResolved = points.reduce((sum, point) => sum + point.resolved, 0);
 
   return (
-    <div className="card flex h-full flex-col p-4">
+    <div className="card flex flex-col p-4">
       <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="section-title">Received vs resolved</h2>
@@ -73,7 +73,7 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
       </p>
 
       <div
-        className="mt-3 min-h-[220px] flex-1"
+        className="mt-3 flex-1"
         role="img"
         aria-label={`Trend chart: ${totalReceived} received and ${totalResolved} resolved over ${points.length} days.`}
       >

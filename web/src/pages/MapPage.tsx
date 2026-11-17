@@ -233,7 +233,7 @@ export function MapPage() {
                   Report density
                 </p>
                 <div className="flex items-center gap-2">
-                  <span className="h-1.5 w-24 rounded-full" style={{ background: "linear-gradient(90deg, #9fd0d8, #1b526d, #a33a32)" }} aria-hidden />
+                  <span className="h-1.5 w-24 rounded-full" style={{ background: "linear-gradient(90deg, #6fd8e8, #4a4bd8, #b32d46)" }} aria-hidden />
                   <span className="text-[10px] text-muted">Low → High</span>
                 </div>
               </div>
@@ -244,7 +244,7 @@ export function MapPage() {
                   14-day forecast · {categoryMeta[forecastCategory].label}
                 </p>
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-24 rounded-sm" style={{ background: "linear-gradient(90deg, transparent, #1b526d)" }} aria-hidden />
+                  <span className="h-2.5 w-24 rounded-sm" style={{ background: "linear-gradient(90deg, transparent, #4a4bd8)" }} aria-hidden />
                   <span className="tabular text-[10px] text-muted">0 → {formatNumber(maxForecast)}</span>
                 </div>
               </div>
