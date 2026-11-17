@@ -283,9 +283,12 @@ cd /opt/civiclens/deploy/oracle
 ```
 
 The script fetches `origin/main`, resets the checkout, rebuilds, and restarts.
-`.env` is untracked and survives. If a release is bad, reset the VM checkout to
-the previous commit and re-run the Compose build/up commands; the image is
-tagged `civiclens-api:latest`, so keep a note of the last known-good commit.
+`.env` is untracked and survives. Because the reset rewrites `deploy.sh` itself
+while bash is still reading it, the script re-executes the updated copy once
+(guarded by `CIVICLENS_DEPLOY_REEXEC`) the first time its own bytes change. If a
+release is bad, reset the VM checkout to the previous commit and re-run the
+Compose build/up commands; the image is tagged `civiclens-api:latest`, so keep a
+note of the last known-good commit.
 
 ## 10. Cost and failure modes
 

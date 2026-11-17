@@ -11,6 +11,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 REPO_ROOT="$(cd ../.. && pwd)"
+SCRIPT_PATH="$PWD/$(basename "$0")"
 
 if [ ! -f .env ]; then
   echo "Missing deploy/oracle/.env. Run ./generate-env.sh first." >&2
@@ -33,8 +34,20 @@ API_DOMAIN="$(sed -n 's/^API_DOMAIN=//p' .env | head -n1)"
 echo "==> Deploying CivicLens to https://${API_DOMAIN}"
 
 echo "==> Updating source"
+BEFORE_REV="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 git -C "$REPO_ROOT" fetch --prune origin main
 git -C "$REPO_ROOT" reset --hard FETCH_HEAD
+AFTER_REV="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+echo "    ${BEFORE_REV:0:7} -> ${AFTER_REV:0:7}"
+
+# `git reset --hard` above rewrote this very script on disk.  bash reads a
+# script incrementally by byte offset, so continuing would execute a mixture of
+# the old and new file.  Re-exec the updated script once, then carry on.
+if [ "${CIVICLENS_DEPLOY_REEXEC:-0}" != "1" ] && [ "$BEFORE_REV" != "$AFTER_REV" ]; then
+  echo "==> Deploy script changed; re-executing the updated copy"
+  export CIVICLENS_DEPLOY_REEXEC=1
+  exec "$SCRIPT_PATH" "$@"
+fi
 
 COMPOSE=(docker compose --env-file .env -f docker-compose.prod.yml)
 
