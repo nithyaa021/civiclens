@@ -210,6 +210,10 @@ runs:
   Redis 7 service containers with an isolated embedded Qdrant path.
 - **Frontend** - `npm ci`, `npm run build` (`tsc --noEmit` + Vite) and
   `npm test` (Vitest).
+- **Deploy config** - `actionlint` on the workflow, `shellcheck` on the deploy
+  scripts, `docker compose config` on the production stack and
+  `caddy validate` on the Caddyfile. This fails a bad deployment asset before
+  it can reach the VM.
 
 The **Deploy production** job runs only on pushes to `main`. It checks for its
 secrets step by step, so the run stays green and skips deployment until they are

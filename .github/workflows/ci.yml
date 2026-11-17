@@ -70,10 +70,41 @@ jobs:
       - name: Test (vitest)
         run: npm test
 
+  deploy-config:
+    name: Deploy config - validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Catches shell bugs, a broken Caddyfile, an invalid Compose file or a
+      # malformed workflow before it reaches the VM.
+      - name: Lint workflow (actionlint)
+        uses: raven-actions/actionlint@v2
+
+      - name: Lint deploy scripts (shellcheck)
+        run: shellcheck -S warning deploy/oracle/*.sh
+
+      - name: Validate compose file
+        run: |
+          set -euo pipefail
+          cp deploy/oracle/.env.example deploy/oracle/.env
+          docker compose --env-file deploy/oracle/.env \
+            -f deploy/oracle/docker-compose.prod.yml config --quiet
+
+      - name: Validate Caddyfile
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -e API_DOMAIN=api.203.0.113.10.sslip.io \
+            -e ACME_EMAIL=ops@example.com \
+            -v "$PWD/deploy/oracle/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.11.9-alpine \
+            caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
   deploy:
     name: Deploy production
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend, frontend, deploy-config]
     # Deploy only from main. Individual steps check whether their secrets are
     # configured, so a repository without deployment credentials still passes.
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
