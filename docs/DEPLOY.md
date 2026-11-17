@@ -238,10 +238,12 @@ gh secret set VERCEL_PROJECT_ID --body "<vercel-project-id>"
 ```
 
 The Vercel job runs `vercel pull`, `vercel build` and `vercel deploy --prebuilt`
-from `web/`; `vercel pull` supplies `VITE_API_BASE_URL` from the project's
-Production environment. If you use Vercel's Git integration instead, omit the
-three Vercel secrets and let Vercel build on every push. Do not enable both paths
-for the same project unless duplicate deployments are acceptable.
+from `web/`; that directory is the project's Vercel Root Directory, so the CLI
+links and builds the app there rather than at the repository root. `vercel pull`
+supplies `VITE_API_BASE_URL` from the project's Production environment. If you
+use Vercel's Git integration instead, omit the three Vercel secrets and let
+Vercel build on every push. Do not enable both paths for the same project unless
+duplicate deployments are acceptable.
 
 After the secrets exist, push any commit to `main` or run the workflow manually.
 

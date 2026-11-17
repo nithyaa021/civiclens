@@ -242,7 +242,8 @@ services:
       - no-new-privileges:true
 
   caddy:
-    image: caddy:2-alpine
+    # Pin the image whose config syntax was validated locally (2.11.9).
+    image: caddy:2.11.9-alpine
     restart: unless-stopped
     ports:
       - "80:80"

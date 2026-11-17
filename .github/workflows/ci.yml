@@ -139,6 +139,8 @@ jobs:
 
       - name: Deploy frontend to Vercel
         if: steps.targets.outputs.vercel == 'true'
+        # `web` is the Vercel project's Root Directory, so the CLI must run
+        # there rather than at the repository root.
         working-directory: web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

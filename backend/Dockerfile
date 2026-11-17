@@ -6,9 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# curl is used by the container healthcheck.
+# curl is used by the container healthcheck.  libgomp1 is required by the
+# scikit-learn/xgboost ARM64 wheels on Debian slim.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv/civiclens
