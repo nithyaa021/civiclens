@@ -14,10 +14,10 @@ weighted breakdown, clusters recurring issues, verifies before/after photo
 evidence and forecasts hotspot volume. A role-scoped assistant answers questions
 and always cites real complaint IDs.
 
-> **Status:** Phases 1–4 are complete and verified end-to-end (108 backend
+> **Status:** Phases 1-4 are complete and verified end-to-end (108 backend
 > tests, 11 frontend tests, real worker/broker smoke run). Phase 5 ships the
-> Render + Vercel deployment, GitHub Actions pipeline, demo assets and the
-> documentation below. Every AI number in this README was measured on the
+> Oracle Always Free + Vercel deployment, GitHub Actions pipeline, demo assets
+> and the documentation below. Every AI number in this README was measured on the
 > deterministic, labelled corpus in `backend/app/data/corpus.py` by
 > `backend/scripts/evaluate.py` — no hand-written or mocked metrics.
 
@@ -30,18 +30,20 @@ detail with verification evidence, city map and the public transparency portal.*
 
 ## Live demo
 
-The production topology is defined in [`render.yaml`](render.yaml) (API, Celery
-worker and Redis) and [`web/vercel.json`](web/vercel.json) (static SPA on
-Vercel). MongoDB Atlas and Qdrant Cloud provide the managed database and vector
-store. See [`docs/DEPLOY.md`](docs/DEPLOY.md) for the 15-minute walkthrough.
+The production topology runs the complete stack on one Oracle Cloud Always Free
+Ampere A1 VM: Caddy, FastAPI, Celery worker/beat, MongoDB, Redis and Qdrant, deployed by
+[`deploy/oracle/docker-compose.prod.yml`](deploy/oracle/docker-compose.prod.yml).
+The static React console is on Vercel Hobby. No managed database, card charge or
+paid service is involved; see [`docs/DEPLOY.md`](docs/DEPLOY.md) for the full
+runbook.
 
 | Surface | URL |
 |---|---|
 | Source (GitHub) | https://github.com/nithyaa021/civiclens |
-| Staff console (Vercel) | `https://<your-project>.vercel.app` |
-| Public transparency portal | `https://<your-project>.vercel.app/public` |
-| API reference (Swagger UI) | `https://<your-api-service>.onrender.com/docs` |
-| OpenAPI schema | `https://<your-api-service>.onrender.com/openapi.json` |
+| Staff console (Vercel) | `https://<vercel-project>.vercel.app` |
+| Public transparency portal | `https://<vercel-project>.vercel.app/public` |
+| API reference (Swagger UI) | `https://api.<public-ip>.sslip.io/docs` |
+| OpenAPI schema | `https://api.<public-ip>.sslip.io/openapi.json` |
 
 The sign-in page lists these seeded development accounts. They are created by
 `backend/scripts/seed_dataset.py` and exist in any seeded environment.
@@ -149,33 +151,36 @@ flowchart LR
     APP["Citizen app / curl"]
   end
 
-  subgraph Render["Render (Docker)"]
+  subgraph Oracle["Oracle Cloud Always Free (Ampere A1 VM)"]
+    CADDY["Caddy<br/>TLS · reverse proxy"]
     API["FastAPI API<br/>/api/v1 · /docs · JWT + RBAC"]
     WORKER["Celery worker<br/>enrich · transcribe · verify"]
     BEAT["Celery beat<br/>SLA sweep · analytics"]
-    REDIS[("Redis<br/>broker · results · rate limits")]
+    MONGO[("MongoDB 7<br/>users · complaints · media · audit")]
+    REDIS[("Redis 7<br/>broker · results · rate limits")]
+    QDRANT[("Qdrant<br/>complaint + CLIP vectors")]
   end
 
-  ATLAS[("MongoDB Atlas<br/>users · complaints · media · audit")]
-  QDRANT[("Qdrant Cloud<br/>complaint + CLIP vectors")]
   TILES["OpenStreetMap tiles"]
 
-  WEB -->|HTTPS + Bearer JWT| API
-  PUB --> API
-  APP --> API
+  WEB -->|HTTPS + Bearer JWT| CADDY
+  PUB --> CADDY
+  APP --> CADDY
   WEB --> TILES
-  API --> ATLAS
+  CADDY --> API
+  API --> MONGO
   API --> REDIS
   API --> QDRANT
   API -->|".delay()"| REDIS
   REDIS --> WORKER
   BEAT --> REDIS
-  WORKER --> ATLAS
+  WORKER --> MONGO
   WORKER --> QDRANT
 ```
 
 Locally, Docker Compose runs the API, worker, beat, MongoDB, Redis and a Qdrant
-server together. The API is stateless; media bytes live in MongoDB, so the API
+server together. Production uses the same services on one Always Free VM with
+only Caddy exposed. The API is stateless; media bytes live in MongoDB, so the API
 and worker can run on separate hosts without a shared disk.
 
 ### Tech stack
@@ -187,7 +192,7 @@ and worker can run on separate hosts without a shared disk.
 | Database | MongoDB 7 via Motor (async) in the API, pymongo in workers |
 | Cache / broker | Redis 7 — Celery broker & result backend, rate limiting, token revocation |
 | Async jobs | Celery 5 (queue `civiclens`) + Celery beat |
-| Vector search | Qdrant — embedded on-disk for dev/tests, server in Compose and Qdrant Cloud in production |
+| Vector search | Qdrant — embedded on-disk for dev/tests, server in Compose and on the production VM |
 | Embeddings | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (384-d, fastembed/ONNX) |
 | Classification | char n-gram TF-IDF + logistic regression (scikit-learn) |
 | Clustering | scikit-learn DBSCAN over a combined geo + cosine distance matrix |
@@ -201,8 +206,8 @@ and worker can run on separate hosts without a shared disk.
 | Observability | structlog (JSON in production), request-id middleware, `/health` probes |
 | Testing | pytest + pytest-asyncio + httpx ASGI transport |
 | Local packaging | Docker + docker-compose (api, worker, beat, mongo, redis, qdrant) |
-| Production | Render (API + worker + Redis), Vercel (SPA), MongoDB Atlas, Qdrant Cloud |
-| CI/CD | GitHub Actions: ruff, pytest, `tsc` + Vite build, Vitest, guarded deploy hooks |
+| Production | Oracle Always Free Ampere A1 (Caddy + API + worker + beat + MongoDB + Redis + Qdrant), Vercel Hobby (SPA) |
+| CI/CD | GitHub Actions: ruff, pytest, `tsc` + Vite build, Vitest, guarded Oracle SSH + optional Vercel CLI deploy |
 
 ---
 
@@ -563,45 +568,48 @@ dashboard windows always contain recent activity. See `scripts/seed_dataset.py
 
 ## Deployment
 
-The checked-in production topology:
+The live topology:
 
-- [`render.yaml`](render.yaml) — Render Blueprint with three services:
-  `civiclens-api` (Docker, FastAPI), `civiclens-worker` (Docker, Celery) and
-  `civiclens-redis` (Render-managed Redis). The API and worker run
-  `backend/scripts/bootstrap_deploy.py` on boot; it seeds 3,458 complaints when
-  the database is empty and installs the deterministic 1.4 MB model artifacts
-  bundled in the image. A Mongo-based lock means the two services never
-  double-seed. Set `CIVICLENS_FORCE_BOOTSTRAP=1` to reseed and retrain on a
-  later deploy.
+- [`deploy/oracle/docker-compose.prod.yml`](deploy/oracle/docker-compose.prod.yml)
+  — one Always Free Ampere A1 VM running Caddy, the API, Celery worker/beat,
+  MongoDB 7, Redis 7 and Qdrant. Only ports 80 and 443 are published.
+- [`deploy/oracle/`](deploy/oracle/) — host setup, `cloud-init.yaml`, secret
+  generation, deploy and backup scripts, and the full VM runbook.
 - [`web/vercel.json`](web/vercel.json) — Vercel Vite build, SPA rewrites and
   immutable asset caching.
 - [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — ruff + pytest with
   Mongo/Redis service containers, `npm ci` + `tsc` + Vite build + Vitest, then a
-  guarded deploy job (Render deploy hook and Vercel CLI) that only runs on
+  guarded deploy job (Oracle SSH and optional Vercel CLI) that only runs on
   `main` when the secrets exist.
 
-MongoDB Atlas and Qdrant Cloud are external because Render offers neither. The
-API and Redis run on Render's free tier; the Celery worker uses the smallest
-paid instance (`0.5c-512mb`, $7/month) because free compute plans are web-only.
-The full walkthrough — Atlas M0, Qdrant Cloud free tier, Render secrets, Vercel
-env vars, CORS, deploy hooks and the post-deploy checklist — is in
-[`docs/DEPLOY.md`](docs/DEPLOY.md).
+The API and worker run `backend/scripts/bootstrap_deploy.py` before the API
+starts; it seeds 3,458 complaints when the database is empty and installs the
+deterministic 1.4 MB model artifacts bundled in the image. The script is
+idempotent, so later deploys skip the seed.
 
-Required production secrets:
+Oracle Always Free includes 4 OCPU / 24 GB RAM and 200 GB of block storage. The
+card requested at signup is for identity verification; the resources above are
+not charged. Vercel Hobby and GitHub Actions on a public repository are free.
+
+Required deployment inputs:
 
 | Variable | Where | Value |
 |---|---|---|
-| `MONGO_URI` | Render | MongoDB Atlas SRV connection string |
-| `QDRANT_URL` | Render | `https://<cluster>.<region>.qdrant.io:6333` |
-| `QDRANT_API_KEY` | Render | Qdrant Cloud API key |
-| `JWT_SECRET` | Render | 48+ random bytes (`secrets.token_urlsafe(48)`) |
-| `CORS_ORIGINS` | Render | `["https://<project>.vercel.app"]` |
-| `RENDER_DEPLOY_HOOK` | GitHub Actions | Render deploy hook URL |
-| `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` | GitHub Actions | Vercel CLI credentials |
+| `API_DOMAIN` | VM `.env` | `api.<reserved-ip>.sslip.io` |
+| `CORS_ORIGINS` | VM `.env` | `["https://<project>.vercel.app"]` |
+| `VITE_API_BASE_URL` | Vercel | `https://api.<reserved-ip>.sslip.io` |
+| `ORACLE_HOST` / `ORACLE_USER` / `ORACLE_SSH_KEY` | GitHub Actions | SSH target and private key |
+| `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` | GitHub Actions | Optional CLI credentials |
 
-The frontend needs one build-time variable on Vercel:
-`VITE_API_BASE_URL=https://<service>.onrender.com`. Without it the SPA calls
-relative `/api/v1` paths (correct for the dev proxy, wrong for a split deploy).
+`generate-env.sh` creates the Mongo, Redis, Qdrant and JWT secrets with
+`openssl rand`; none of them are committed. The full walkthrough — VM creation,
+reserved IP, Caddy TLS, Vercel import, CI secrets, verification, backups and
+rollback — is in [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
+The [`render.yaml`](render.yaml) blueprint remains as an optional paid path. Its
+Celery worker requires a $7/month instance because Render's free compute plans
+are web-only and 512 MB cannot hold the measured translation and vision peaks.
+It is not used by the live demo.
 
 ---
 
@@ -745,15 +753,16 @@ on top later, but only with the same citation contract and role scoping.
 **Celery + Redis rather than FastAPI background tasks.** Enrichment, Whisper,
 CLIP and forecasting need retries, a separate worker process and a beat schedule
 for SLA sweeps. The trade-off is operational complexity: one more service to
-deploy and monitor. Render runs the API and worker as separate services.
+deploy and monitor. The production Compose stack runs the API and worker as
+separate containers.
 
-**MongoDB Atlas + Qdrant Cloud on Render.** Render does not offer managed Mongo
-or Qdrant, so the Blueprint composes four providers. The API, Redis and both
-managed free tiers cost nothing; the Celery worker is $7/month because Render's
-free compute plans are web-only. This keeps the demo cheap and reproducible but
-means it depends on external free tiers, each with its own cold-start and quota
-behaviour. Free Render web services also spin down after inactivity; the first
-request can take a minute.
+**One Oracle Always Free VM over four managed providers.** Running Mongo, Redis,
+Qdrant and the model stack on a single A1 instance avoids Atlas/Qdrant Cloud
+accounts, cross-region latency, provider quotas and a $7/month worker. The
+trade-off is a single point of failure and self-managed databases: patching,
+backups and disk alerts are our responsibility. The backup cron covers MongoDB;
+Qdrant is rebuildable. A managed path remains documented for teams that value
+availability over zero cost.
 
 **Bundled 1.4 MB model artifacts over training at boot.** The classifier,
 resolution comparator and forecaster are trained from the deterministic corpus
@@ -817,11 +826,12 @@ weights, clustering, forecasting, assistant) are documented inline there.
 
 ```text
 civiclens/
-├── render.yaml                 # Render Blueprint: api + worker + redis
+├── deploy/oracle/              # Always Free VM: compose, Caddy, setup, deploy, backup
+├── render.yaml                 # optional paid Render blueprint
 ├── docker-compose.yml          # local api + worker + beat + mongo + redis + qdrant
 ├── .github/workflows/ci.yml    # lint, test, build, guarded deploy
 ├── docs/
-│   ├── DEPLOY.md               # Render + Vercel runbook
+│   ├── DEPLOY.md               # Oracle + Vercel runbook
 │   ├── demo.gif                # 28-second walkthrough
 │   └── screenshots/            # real captures, dark + light
 ├── backend/
@@ -876,9 +886,10 @@ civiclens/
   per-ward volume/severity/speed profiles, 3,458 complaints over 180 days,
   realistic addresses and coordinates, labelled duplicates and resolution pairs,
   demo accounts surfaced on the sign-in page.
-- [x] **Phase 5 — Deployment and demo:** Render Blueprint (API + worker + Redis),
-  Vercel configuration, idempotent first-boot bootstrap, GitHub Actions CI/CD,
-  real screenshots, demo GIF, deployment runbook and this README.
+- [x] **Phase 5 — Deployment and demo:** Oracle Always Free Ampere VM with
+  Compose, Caddy TLS, MongoDB/Redis/Qdrant, Vercel configuration, idempotent
+  first-boot bootstrap, GitHub Actions CI/CD, real screenshots, demo GIF,
+  deployment runbook and this README.
 - [ ] **Next:** Flutter citizen app, keyed vector basemap, object-store media for
   multi-region deployments, field-labelled resolution dataset and a transformer
   category classifier.

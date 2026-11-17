@@ -1,4 +1,8 @@
-# Render Blueprint for the CivicLens API + Celery worker.
+# OPTIONAL PAID PATH - not used by the live demo.
+#
+# The live demo runs the full stack on a single Oracle Cloud Always Free Ampere
+# A1 VM; see deploy/oracle/ and docs/DEPLOY.md.  This Render Blueprint remains
+# as an alternative for teams that accept the paid worker instance.
 #
 # Render does not host MongoDB or Qdrant, so those come from external managed
 # services (MongoDB Atlas free tier + Qdrant Cloud free tier).  Set their

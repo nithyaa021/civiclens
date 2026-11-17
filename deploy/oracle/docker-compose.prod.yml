@@ -1,0 +1,270 @@
+# Production stack for a single Oracle Cloud Always Free Ampere VM.
+#
+#   docker compose --env-file .env -f docker-compose.prod.yml up -d --build
+#
+# Only Caddy publishes ports (80/443).  Mongo, Redis and Qdrant are reachable
+# only on the private Compose network.  The API is additionally bound to
+# 127.0.0.1:8000 for health checks from the VM itself.
+#
+# This file intentionally does not use Atlas/Qdrant Cloud: the Always Free VM
+# has enough RAM and disk to host the complete demo, and keeping the databases
+# local removes two account setups and cross-region latency from the
+# zero-cost path.  See docs/DEPLOY.md for the managed-services alternative.
+
+name: civiclens
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-backend: &backend
+  build:
+    context: ../../backend
+  image: civiclens-api:latest
+
+x-app-env: &app-env
+  MONGO_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/${MONGO_DB}?authSource=admin
+  REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+  QDRANT_URL: http://qdrant:6333
+  QDRANT_API_KEY: ${QDRANT_API_KEY}
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh \"mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@localhost:27017/admin?authSource=admin\" --quiet --eval 'db.adminCommand({ ping: 1 }).ok' | grep -q 1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+    mem_limit: 3g
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD}",
+      ]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *default-logging
+    mem_limit: 1g
+
+  qdrant:
+    image: qdrant/qdrant:v1.20.0
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    logging: *default-logging
+    mem_limit: 3g
+
+  # One-shot: download the ONNX/Whisper/NLLB artifacts into the shared cache
+  # volume.  A marker makes later deploys a no-op.  Failure is non-fatal; the
+  # application downloads lazily on first use instead.
+  warmup:
+    <<: *backend
+    command:
+      - sh
+      - -c
+      - |
+        if [ -f /home/civiclens/.cache/.civiclens-warm ]; then
+          echo "Model cache already warm."
+          exit 0
+        fi
+        python scripts/warmup_models.py && touch /home/civiclens/.cache/.civiclens-warm || {
+          echo "Model warmup failed; models will download lazily on first use."
+        }
+    env_file:
+      - .env
+    environment:
+      <<: *app-env
+    volumes:
+      - model_cache:/home/civiclens/.cache
+      - models_data:/srv/civiclens/var/models
+    restart: "no"
+    logging: *default-logging
+    mem_limit: 6g
+
+  # One-shot: install bundled model artifacts and seed the 25-ward corpus.  The
+  # script is idempotent, so it is safe to run on every deploy.
+  bootstrap:
+    <<: *backend
+    command: ["python", "scripts/bootstrap_deploy.py"]
+    env_file:
+      - .env
+    environment:
+      <<: *app-env
+    volumes:
+      - model_cache:/home/civiclens/.cache
+      - models_data:/srv/civiclens/var/models
+    depends_on:
+      warmup:
+        condition: service_completed_successfully
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    restart: "no"
+    logging: *default-logging
+    mem_limit: 4g
+
+  api:
+    <<: *backend
+    restart: unless-stopped
+    command:
+      [
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--proxy-headers",
+        "--forwarded-allow-ips=*",
+      ]
+    env_file:
+      - .env
+    environment:
+      <<: *app-env
+    volumes:
+      - model_cache:/home/civiclens/.cache
+      - models_data:/srv/civiclens/var/models
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging: *default-logging
+    mem_limit: 3g
+    security_opt:
+      - no-new-privileges:true
+
+  worker:
+    <<: *backend
+    restart: unless-stopped
+    command:
+      [
+        "celery",
+        "-A",
+        "app.workers.celery_app",
+        "worker",
+        "--loglevel=info",
+        "--concurrency=2",
+        "--max-tasks-per-child=50",
+      ]
+    env_file:
+      - .env
+    environment:
+      <<: *app-env
+    volumes:
+      - model_cache:/home/civiclens/.cache
+      - models_data:/srv/civiclens/var/models
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+    logging: *default-logging
+    mem_limit: 10g
+    security_opt:
+      - no-new-privileges:true
+
+  beat:
+    <<: *backend
+    restart: unless-stopped
+    command: ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel=info"]
+    env_file:
+      - .env
+    environment:
+      <<: *app-env
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+    logging: *default-logging
+    mem_limit: 512m
+    security_opt:
+      - no-new-privileges:true
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    logging: *default-logging
+    mem_limit: 512m
+
+volumes:
+  mongo_data:
+  qdrant_data:
+  redis_data:
+  model_cache:
+  models_data:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,33 @@
+{
+	# Let's Encrypt uses this address for expiry notices.  It does not have to
+	# match the API domain.
+	email {$ACME_EMAIL}
+}
+
+# API_DOMAIN is derived from the VM's reserved public IP, e.g.
+# api.203.0.113.10.sslip.io.  Caddy obtains and renews the TLS certificate
+# automatically over HTTP-01.
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	# Evidence photos are capped at 8 MB and voice notes at 15 MB in the API;
+	# 20 MB leaves room for multipart framing.  Caddy rejects larger bodies
+	# before they reach Python.
+	request_body {
+		max_size 20MB
+	}
+
+	reverse_proxy api:8000 {
+		health_uri /health
+		health_interval 30s
+		health_timeout 5s
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

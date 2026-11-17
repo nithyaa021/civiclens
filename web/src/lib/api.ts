@@ -24,8 +24,8 @@ import type {
 const TOKEN_KEY = "civiclens.tokens";
 
 // In development the Vite proxy forwards `/api` to the local API, so an empty
-// base keeps requests same-origin.  In production (Vercel → Render) set
-// `VITE_API_BASE_URL` to the deployed API origin, e.g. https://civiclens-api.onrender.com
+// base keeps requests same-origin.  In production (Vercel + Oracle VM) set
+// `VITE_API_BASE_URL` to the deployed API origin, e.g. https://api.203.0.113.10.sslip.io
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 const API_ROOT = `${API_BASE}/api/v1`;
 

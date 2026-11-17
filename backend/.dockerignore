@@ -1,0 +1,18 @@
+# Keep the image build context small and free of local state/secrets.
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+tests/
+var/
+.env
+.env.*
+!.env.example

@@ -1,0 +1,50 @@
+#cloud-config
+# Optional first-boot script for the Oracle Ubuntu 24.04 Ampere VM.
+# Paste this into "Advanced options -> Initialization script" when creating the
+# instance, or run deploy/oracle/setup-host.sh on an existing VM.
+package_update: true
+package_upgrade: false
+ssh_pwauth: false
+packages:
+  - ca-certificates
+  - curl
+  - docker.io
+  - docker-compose-v2
+  - fail2ban
+  - git
+  - openssl
+  - ufw
+  - unattended-upgrades
+runcmd:
+  - |
+    set -eux
+    systemctl enable --now docker
+    usermod -aG docker ubuntu
+
+    ufw allow OpenSSH
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    ufw --force enable
+
+    install -d -o ubuntu -g ubuntu /opt/civiclens
+    install -d -o ubuntu -g ubuntu /opt/civiclens/backups
+
+    if ! swapon --show | grep -q .; then
+      fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon /swapfile
+      grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+
+    printf 'vm.swappiness=10\n' >/etc/sysctl.d/99-civiclens.conf
+    sysctl --system >/dev/null
+
+    cat >/etc/cron.d/civiclens-backup <<'EOF'
+    SHELL=/bin/bash
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    15 2 * * * ubuntu /opt/civiclens/deploy/oracle/backup.sh >> /var/log/civiclens-backup.log 2>&1
+    EOF
+    chmod 0644 /etc/cron.d/civiclens-backup
+
+    dpkg-reconfigure -f noninteractive unattended-upgrades || true

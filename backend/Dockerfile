@@ -22,7 +22,8 @@ COPY app ./app
 COPY scripts ./scripts
 
 RUN useradd --create-home --uid 10001 civiclens \
-    && chown -R civiclens:civiclens /srv/civiclens
+    && mkdir -p /home/civiclens/.cache /srv/civiclens/var/models /srv/civiclens/var/media \
+    && chown -R civiclens:civiclens /home/civiclens /srv/civiclens
 USER civiclens
 
 EXPOSE 8000
