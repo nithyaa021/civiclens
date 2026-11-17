@@ -259,10 +259,19 @@ free -h
 df -h
 ```
 
-The stack uses per-service memory limits (worker 10 GB by default, API 3 GB,
-Mongo and Qdrant 3 GB each). These are caps, not reservations; steady-state usage
-is much lower. On a 12 GB fallback VM, set `WORKER_CONCURRENCY=1` and optionally
-`WORKER_MEM_LIMIT=6g` in `.env`, then keep an eye on `docker stats`.
+The stack uses per-service memory limits (worker 8 GB by default, API 3 GB,
+Mongo and Qdrant 3 GB each, Redis 1 GB, beat and Caddy 512 MB each). These are
+caps, not reservations, and steady-state usage is much lower. The caps sum to
+19 GB, which leaves 5 GB of the 24 GB VM for the kernel, Docker and the page
+cache, so the stack still schedules even if several services spike at once.
+`warmup` (6 GB) and `bootstrap` (4 GB) are excluded from that figure because
+they are one-shot and exit before the API, worker and beat start.
+
+MongoDB is started with `--wiredTigerCacheSizeGB 1`. Without it WiredTiger sizes
+its cache from host RAM (50% of 24 GB) and is OOM-killed inside the 3 GB cap.
+
+On a 12 GB fallback VM, set `WORKER_CONCURRENCY=1` and `WORKER_MEM_LIMIT=6g` in
+`.env`, then keep an eye on `docker stats`.
 
 ## 9. Updating and rollback
 

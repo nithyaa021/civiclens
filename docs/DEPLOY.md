@@ -362,10 +362,12 @@ free -h
 df -h
 ```
 
-Memory caps (worker 10 GB by default, API 3 GB, Mongo and Qdrant 3 GB each) are
-limits, not reservations; steady-state usage is much lower. On the 12 GB fallback
-shape, set `WORKER_CONCURRENCY=1` and optionally `WORKER_MEM_LIMIT=6g` in `.env`,
-then watch `docker stats`.
+Memory caps (worker 8 GB by default, API 3 GB, Mongo and Qdrant 3 GB each,
+Redis 1 GB, beat and Caddy 512 MB each) are limits, not reservations; steady
+state usage is much lower. The caps sum to 19 GB, leaving 5 GB of the 24 GB VM
+for the kernel, Docker and the page cache. On the 12 GB fallback shape, set
+`WORKER_CONCURRENCY=1` and `WORKER_MEM_LIMIT=6g` in `.env`, then watch
+`docker stats`.
 
 ### Updating and rollback
 

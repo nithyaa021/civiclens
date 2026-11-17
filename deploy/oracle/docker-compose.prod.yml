@@ -34,6 +34,9 @@ services:
   mongo:
     image: mongo:7
     restart: unless-stopped
+    # WiredTiger sizes its cache from the *host* RAM (50% of 24 GB), which
+    # would exceed the 3 GB container cap and get OOM-killed.  Pin it instead.
+    command: ["mongod", "--wiredTigerCacheSizeGB", "1"]
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
