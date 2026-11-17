@@ -26,8 +26,9 @@ runcmd:
     ufw allow 443/tcp
     ufw --force enable
 
+    # Leave /opt/civiclens empty: the runbook clones the repository there.
+    # backup.sh creates /opt/civiclens/backups on its first run.
     install -d -o ubuntu -g ubuntu /opt/civiclens
-    install -d -o ubuntu -g ubuntu /opt/civiclens/backups
 
     if ! swapon --show | grep -q .; then
       fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096

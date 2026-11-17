@@ -40,8 +40,9 @@ In Oracle Cloud Console:
 4. Shape: **Ampere → VM.Standard.A1.Flex**.
    - Recommended: **4 OCPU / 24 GB RAM** (the full Always Free allowance).
    - If capacity is unavailable: try another availability domain, or use
-     **2 OCPU / 12 GB**. The stack fits, but set the worker concurrency to `1`
-     in `docker-compose.prod.yml` and expect slower first-time seeding.
+     **2 OCPU / 12 GB**. The stack fits, but set `WORKER_CONCURRENCY=1` (and
+     optionally `WORKER_MEM_LIMIT=6g`) in `.env` and expect slower first-time
+     seeding.
 5. Boot volume: **100 GB** (Always Free includes 200 GB total; 100 GB is ample).
 6. Networking: assign a **public IPv4 address**.
 7. SSH keys: paste the public key you will deploy with. On the machine that will
@@ -258,10 +259,10 @@ free -h
 df -h
 ```
 
-The stack uses per-service memory limits (worker 10 GB, API 3 GB, Mongo and
-Qdrant 3 GB each). These are caps, not reservations; steady-state usage is much
-lower. On a 12 GB fallback VM, set worker concurrency to `1` and keep an eye on
-`docker stats`.
+The stack uses per-service memory limits (worker 10 GB by default, API 3 GB,
+Mongo and Qdrant 3 GB each). These are caps, not reservations; steady-state usage
+is much lower. On a 12 GB fallback VM, set `WORKER_CONCURRENCY=1` and optionally
+`WORKER_MEM_LIMIT=6g` in `.env`, then keep an eye on `docker stats`.
 
 ## 9. Updating and rollback
 
@@ -308,6 +309,6 @@ Known constraints:
 | Caddy cannot get a certificate | DNS resolves to the IP; Oracle security list + UFW allow 80/443; logs |
 | API 503 on `/api/v1/health` | `docker compose ... ps`; Mongo/Redis health; logs |
 | Empty dashboard after deploy | `docker compose ... logs bootstrap`; Mongo volume; `docker compose ... run --rm bootstrap` |
-| Worker OOM / restart loop | `docker stats`; lower `--concurrency` to 1; check NLLB peak |
+| Worker OOM / restart loop | `docker stats`; set `WORKER_CONCURRENCY=1`; check NLLB peak |
 | Frontend CORS error | `CORS_ORIGINS` exactly matches the Vercel origin; restart `api` |
 | Oracle shape out of capacity | Retry another AD or use 2 OCPU / 12 GB |

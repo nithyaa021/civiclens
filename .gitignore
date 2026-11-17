@@ -36,3 +36,4 @@ Thumbs.db
 # --- Runtime data ---
 *.log
 var/
+backups/

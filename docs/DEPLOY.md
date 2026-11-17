@@ -58,8 +58,8 @@ In Oracle Cloud Console:
 3. Shape: **Ampere -> VM.Standard.A1.Flex**.
    - Recommended: **4 OCPU / 24 GB RAM** (the full Always Free allowance).
    - If capacity is unavailable: retry another availability domain, or use
-     **2 OCPU / 12 GB**. The stack fits, but set worker concurrency to `1` in
-     `deploy/oracle/docker-compose.prod.yml`.
+     **2 OCPU / 12 GB**. The stack fits, but set `WORKER_CONCURRENCY=1` (and
+     optionally `WORKER_MEM_LIMIT=6g`) in the VM `.env`.
 4. Boot volume: **100 GB** (Always Free includes 200 GB total).
 5. Networking: assign a **public IPv4 address**.
 6. SSH keys: paste the public key from step 0.
@@ -345,9 +345,10 @@ free -h
 df -h
 ```
 
-Memory caps (worker 10 GB, API 3 GB, Mongo and Qdrant 3 GB each) are limits, not
-reservations; steady-state usage is much lower. On the 12 GB fallback shape, set
-worker concurrency to `1` and watch `docker stats`.
+Memory caps (worker 10 GB by default, API 3 GB, Mongo and Qdrant 3 GB each) are
+limits, not reservations; steady-state usage is much lower. On the 12 GB fallback
+shape, set `WORKER_CONCURRENCY=1` and optionally `WORKER_MEM_LIMIT=6g` in `.env`,
+then watch `docker stats`.
 
 ### Updating and rollback
 

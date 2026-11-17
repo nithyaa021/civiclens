@@ -197,7 +197,7 @@ services:
         "app.workers.celery_app",
         "worker",
         "--loglevel=info",
-        "--concurrency=2",
+        "--concurrency=${WORKER_CONCURRENCY:-2}",
         "--max-tasks-per-child=50",
       ]
     env_file:
@@ -217,7 +217,7 @@ services:
       bootstrap:
         condition: service_completed_successfully
     logging: *default-logging
-    mem_limit: 10g
+    mem_limit: ${WORKER_MEM_LIMIT:-10g}
     security_opt:
       - no-new-privileges:true
 

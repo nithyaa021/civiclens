@@ -47,8 +47,9 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 
+# Keep this directory empty so `git clone ... /opt/civiclens` works.  The
+# backup script creates /opt/civiclens/backups on its first run.
 install -d -o "$TARGET_USER" -g "$TARGET_USER" /opt/civiclens
-install -d -o "$TARGET_USER" -g "$TARGET_USER" /opt/civiclens/backups
 
 # A small swap file protects against a transient NLLB/CLIP spike.  The VM has
 # 24 GB of RAM, so this is a safety net rather than the working set.
